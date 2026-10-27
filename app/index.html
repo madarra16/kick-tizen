@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Kick</title>
+  <link rel="stylesheet" href="css/app.css">
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+  <main id="screens"></main>
+
+  <header id="nav">
+    <div class="nav-pill">
+      <div class="nav-tab nav-search f" data-go="search"><span class="icon i-search"></span></div>
+      <div class="nav-tab f" data-go="home" data-i18n="Home">Home</div>
+      <div class="nav-tab f" data-go="categories" data-i18n="Categories">Categories</div>
+      <div class="nav-tab f" data-go="live" data-i18n="Live">Live</div>
+      <div class="nav-tab f" data-go="following" data-i18n="Following">Following</div>
+    </div>
+    <div class="nav-right">
+      <div id="navUser" class="f" data-go="settings"></div>
+    </div>
+  </header>
+
+  <div id="player" hidden>
+    <div id="playerStatus" class="player-status"><div class="spinner"></div><div class="ps-title"></div><div class="ps-detail"></div></div>
+    <div id="pauseBadge" class="pause-badge" hidden><span class="icon"></span></div>
+    <aside id="chat" class="chat" hidden>
+      <div id="chatPinned" class="chat-pinned" hidden></div>
+      <div id="chatList" class="chat-list"></div>
+    </aside>
+    <div id="overlay" class="overlay" hidden>
+      <div class="ov-head">
+        <div class="ov-avatar-wrap"><img id="ovAvatar" class="avatar" alt=""><span class="ov-live" data-i18n="LIVE">LIVE</span></div>
+        <div class="ov-text">
+          <div class="ov-line"><span id="ovName" class="ov-name"></span><span class="verified"></span><span id="ovViewers" class="ov-viewers"></span></div>
+          <div id="ovTitle" class="ov-title"></div>
+          <div class="ov-cat"><span id="ovCategory"></span><span id="ovLanguage"></span></div>
+        </div>
+      </div>
+      <div class="ov-bottom">
+        <div class="ov-time"><span id="ovUptime"></span><span id="seekEnd" class="seek-end"></span></div>
+        <div id="seekBar" class="seek f"><div class="seek-track"><div id="seekFill" class="seek-fill"></div></div><div id="seekKnob" class="seek-knob"></div></div>
+        <div id="ovButtons" class="ov-buttons"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal" class="modal" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/vendor/qrcode.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/i18n-data.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/focus.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/screens.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

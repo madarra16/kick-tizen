@@ -1,0 +1,331 @@
+/* Kick for Tizen. Layout and sizes follow Kick's Android TV app 1.5.0 (Compose dp x 2 = TV px,
+   checked against Kick's own TV screenshots). Icons are the app's own drawables (img/).
+   Chromium 63: no flex `gap`, no backdrop-filter; spacing uses margins. Fixed 1920x1080. */
+@font-face { font-family: Inter; font-weight: 400; src: url(../fonts/Inter-Regular.ttf); }
+@font-face { font-family: Inter; font-weight: 600; src: url(../fonts/Inter-SemiBold.ttf); }
+@font-face { font-family: Inter; font-weight: 700; src: url(../fonts/Inter-Bold.ttf); }
+@font-face { font-family: Inter; font-weight: 800; src: url(../fonts/Inter-ExtraBold.ttf); }
+
+:root {
+  --green: #53fc18;
+  --cyan: #30e8e8;
+  --ink: #0b0e0f;
+  --bg: #000;
+  --surface: #1a1a1a;
+  --surface-2: #202020;
+  --key: #262626;
+  --text: #fff;
+  --muted: #b4b4b4;
+}
+
+* { box-sizing: border-box; }
+html { overflow: hidden; }
+html, body { margin: 0; width: 1920px; height: 1080px; background: var(--bg); color: var(--text); font-family: Inter, sans-serif;
+  font-size: 24px; -webkit-font-smoothing: antialiased; }
+html.playing, html.playing body { background: transparent; }
+html.playing #screens, html.playing #nav { display: none; }
+img { display: block; }
+[hidden] { display: none !important; }
+
+/* Single-colour official icons used as masks so they take the text colour. */
+.icon { display: inline-block; background: currentColor; -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; }
+.i-search { -webkit-mask-image: url(../img/ic_search.svg); }
+.i-settings { -webkit-mask-image: url(../img/ic_settings.svg); }
+.i-chat { -webkit-mask-image: url(../img/ic_chat.svg); }
+.i-follow { -webkit-mask-image: url(../img/ic_follow.svg); }
+.i-following { -webkit-mask-image: url(../img/ic_follow_filled.svg); }  /* the official heart's outline, filled */
+.i-viewers { -webkit-mask-image: url(../img/ic_viewers.svg); }
+.i-hd { -webkit-mask-image: url(../img/ic_hd.svg); }
+.i-device { -webkit-mask-image: url(../img/ic_mobile_devices.svg); }
+.i-clear { -webkit-mask-image: url(../img/ic_delete.svg); }
+.i-space { -webkit-mask-image: url(../img/keyboard_space_bar.svg); }
+.i-backspace { -webkit-mask-image: url(../img/keyboard_delete.svg); }
+
+/* ---- top navigation (KickTopNavigationBar: 56dp row, pill 16dp from the top) ---- */
+#nav { position: fixed; z-index: 20; left: 0; top: 0; width: 1920px; height: 150px;
+  background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%); }
+.nav-pill { position: absolute; left: 50%; top: 32px; height: 52px; transform: translateX(-50%); display: flex; align-items: center;
+  padding: 0 6px; border-radius: 26px; background: rgba(34,40,41,.82); white-space: nowrap; }
+.nav-tab { height: 42px; line-height: 42px; padding: 0 26px; margin: 0 2px; border-radius: 21px; font-size: 25px; font-weight: 600; color: var(--text); }
+.nav-tab.active { color: var(--green); }
+.nav-tab.focused { background: var(--text); color: #000; }
+.nav-search { padding: 0 12px; }
+.nav-search .icon { width: 32px; height: 32px; vertical-align: -7px; }
+.nav-right { position: absolute; right: 48px; top: 32px; height: 52px; display: flex; align-items: center; }
+.nav-icon { width: 52px; height: 52px; border-radius: 26px; margin-right: 14px; text-align: center; padding-top: 11px; color: var(--text); }
+.nav-icon .icon { width: 30px; height: 30px; }
+.nav-icon.focused { background: var(--text); color: #000; }
+#navUser { height: 52px; border-radius: 26px; display: flex; align-items: center; color: var(--text); }
+#navUser img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; margin: 3px; }
+#navUser.focused img { box-shadow: 0 0 0 4px var(--text); }
+#navUser .connect { display: flex; align-items: center; padding: 0 20px 0 16px; font-size: 25px; font-weight: 600; }
+#navUser .connect .icon { width: 28px; height: 28px; margin-right: 12px; }
+#navUser.focused .connect { background: var(--text); color: #000; border-radius: 26px; height: 52px; }
+
+/* ---- screens and scrolling ---- */
+/* Clip to the screen: anything wider makes the TV zoom the whole page out to fit it. */
+#screens { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+.screen { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
+.scroller { position: relative; padding: 104px 0 120px 48px; transition: transform .25s ease-out; will-change: transform; }
+.sec { margin-bottom: 44px; }
+.sec h2 { font-size: 32px; font-weight: 600; margin: 0 0 22px; }
+.sec h2 em { font-style: normal; color: var(--cyan); }
+.rowview { position: relative; }
+.track { display: flex; align-items: flex-start; transition: transform .25s ease-out; will-change: transform; }
+.track > * { flex: 0 0 auto; margin-right: 26px; }
+.grid { display: flex; flex-wrap: wrap; width: 1860px; }
+.grid > * { margin: 0 26px 32px 0; }
+.grid.cats > * { margin: 0 25px 32px 0; }
+.empty { color: var(--muted); font-size: 28px; padding: 16px 0 28px; }
+.empty b { display: block; color: var(--text); font-size: 34px; margin-bottom: 10px; }
+
+/* ---- stream card (KickThumbnailStream: 8dp corners, info on the picture) ---- */
+.card { position: relative; width: 578px; height: 325px; border-radius: 16px; overflow: hidden; background: var(--surface); }
+.card > img.thumb { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.card .shade { position: absolute; left: 0; right: 0; bottom: 0; height: 230px;
+  background: linear-gradient(0deg, rgba(0,0,0,.88) 0%, rgba(0,0,0,.55) 45%, rgba(0,0,0,0) 100%); }
+.card .live { position: absolute; left: 12px; top: 12px; height: 22px; }
+.card .count { position: absolute; right: 12px; top: 10px; display: flex; align-items: center; background: rgba(11,14,15,.85);
+  border-radius: 4px; padding: 0 8px; height: 28px; font-size: 19px; font-weight: 700; color: var(--green); }
+.card .count .icon { width: 20px; height: 20px; margin-right: 6px; }
+.card .info { position: absolute; left: 12px; right: 14px; bottom: 12px; display: flex; align-items: center; }
+.avatar { border-radius: 50%; object-fit: cover; background: #2a2a2a; flex: 0 0 auto; }
+.card .info .avatar { width: 84px; height: 84px; border: 3px solid rgba(255,255,255,.92); }
+.card .lines { min-width: 0; flex: 1 1 auto; margin-left: 12px; }
+.card .name { font-size: 30px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .title { font-size: 22px; font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .meta { font-size: 17px; color: #d0d0d0; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .meta span { margin-right: 14px; }
+.card.focused:after, .cat.focused:after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; border: 5px solid var(--green); border-radius: 16px; }
+.card.skeleton { background: var(--surface); }
+/* clip / past broadcast card */
+.card .dur { position: absolute; left: 12px; top: 12px; height: 28px; line-height: 28px; padding: 0 9px; border-radius: 4px;
+  background: rgba(11,14,15,.85); font-size: 19px; font-weight: 700; }
+.card .vtitle { font-size: 26px; font-weight: 700; line-height: 1.2; max-height: 62px; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.card.vod .info { left: 18px; }
+
+/* ---- category card (KickThumbnailCategory: box art only) ---- */
+.cat { position: relative; width: 226px; height: 300px; border-radius: 16px; overflow: hidden; background: var(--surface); }
+.cat.big { width: 285px; height: 378px; }
+.cat img { width: 100%; height: 100%; object-fit: cover; }
+.cat .noart { position: absolute; left: 16px; right: 16px; bottom: 18px; font-size: 26px; font-weight: 700; }
+
+/* ---- channel circle (search results, offline follows) ---- */
+.chan { width: 190px; text-align: center; }
+.chan .ring { position: relative; width: 162px; height: 162px; margin: 6px auto 0; }
+.chan .ring .avatar { width: 162px; height: 162px; border: 5px solid transparent; }
+.chan.live .ring .avatar { border-color: var(--green); }
+.chan .ring .pill { position: absolute; left: 50%; bottom: -12px; height: 30px; transform: translateX(-50%); }
+.chan .name { display: flex; justify-content: center; align-items: center; font-size: 28px; font-weight: 700; margin-top: 22px; white-space: nowrap; }
+.chan .name span { overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.chan .name img { width: 26px; height: 26px; margin-left: 6px; flex: 0 0 auto; }
+.chan .sub { font-size: 20px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chan.focused .ring .avatar { box-shadow: 0 0 0 5px var(--text); }
+.chan.small { width: 180px; }
+.chan.small .ring, .chan.small .ring .avatar { width: 156px; height: 156px; }
+
+/* ---- buttons, tabs, settings ---- */
+.btn { display: inline-block; height: 60px; line-height: 60px; padding: 0 34px; border-radius: 30px; background: var(--surface-2); color: var(--text);
+  font-size: 24px; font-weight: 700; margin-right: 18px; white-space: nowrap; }
+.btn.primary { background: var(--green); color: var(--ink); }
+.btn.focused { background: var(--text); color: #000; }
+.page-title { font-size: 44px; font-weight: 800; margin: 0 0 34px; }
+.set-group { font-size: 22px; font-weight: 700; color: var(--muted); margin: 34px 0 14px; }
+.set-item { display: flex; align-items: center; width: 1100px; min-height: 84px; padding: 16px 28px; border-radius: 16px; background: var(--surface); margin-bottom: 10px; }
+.set-item .label { flex: 1 1 auto; font-size: 26px; font-weight: 600; }
+.set-item .label small { display: block; font-size: 20px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+.set-item .value { font-size: 24px; color: var(--green); font-weight: 700; margin-left: 24px; }
+.set-item.focused { background: var(--text); color: #000; }
+.set-item.focused small { color: #444; }
+.set-item.focused .value { color: #000; }
+
+/* ---- home: featured carousel (FeaturedCarouselRow / ImmersiveStreamerHeader) ---- */
+.hero { position: relative; width: 1920px; height: 880px; margin: -104px 0 0 -48px; }
+.hero-img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover;
+  opacity: 0; transition: opacity .45s, transform .3s ease-out; }
+.hero-img.on { opacity: 1; }
+.hero.focused .hero-img { transform: scale(1.02); }
+.hero-grad { position: absolute; left: 0; top: 400px; width: 1920px; height: 680px;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.4) 20%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.95) 100%); }
+.hero-badges { position: absolute; left: 48px; top: 144px; display: flex; align-items: center; }
+.hero-badges .live { height: 36px; margin-right: 16px; }
+.hero-badges .count { height: 36px; line-height: 36px; padding: 0 12px; border-radius: 4px; background: var(--ink); font-size: 24px; font-weight: 700; }
+.hero-badges .count:before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--green); margin-right: 8px; vertical-align: 3px; }
+.hero-head { position: absolute; left: 48px; top: 653px; display: flex; align-items: center; width: 1400px; }
+.hero-head .avatar { width: 120px; height: 120px; border: 4px solid var(--green); }
+.hero-head .lines { margin-left: 24px; min-width: 0; }
+.hero-head .name { font-size: 42px; font-weight: 800; }
+.hero-head .cat-lang { font-size: 26px; font-weight: 600; margin-top: 6px; }
+.hero-head .title { font-size: 20px; font-weight: 700; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 1200px; }
+.hero-dots { position: absolute; left: 50%; top: 846px; transform: translateX(-50%); display: flex; align-items: center; height: 28px; padding: 0 12px;
+  border-radius: 14px; background: rgba(0,0,0,.55); }
+.hero-dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.65); margin: 0 6px; transition: width .2s; }
+.hero-dots i.on { width: 32px; height: 10px; border-radius: 5px; background: var(--green); }
+
+/* ---- category detail ---- */
+.cat-head { display: flex; align-items: flex-end; margin-bottom: 40px; }
+.cat-head img { width: 168px; height: 224px; border-radius: 16px; object-fit: cover; margin-right: 36px; background: var(--surface); }
+.cat-head h1 { font-size: 52px; font-weight: 800; margin: 0 0 10px; }
+.cat-head .sub { color: var(--muted); font-size: 26px; margin-bottom: 16px; }
+.tag { display: inline-block; background: var(--surface-2); border-radius: 16px; padding: 4px 14px; font-size: 18px; color: var(--muted); margin-right: 10px; }
+
+/* ---- search (SearchLetterButton: 36dp keys) ---- */
+.kbd { position: absolute; left: 46px; top: 110px; width: 420px; }
+.query { height: 65px; line-height: 65px; background: var(--surface-2); padding: 0 34px; font-size: 34px; margin-bottom: 30px; white-space: nowrap; overflow: hidden; }
+.query.placeholder { color: #777; }
+.keys { display: flex; flex-wrap: wrap; width: 420px; }
+.key { width: 69px; height: 61px; line-height: 61px; margin: 0 1px 1px 0; text-align: center; background: var(--key); font-size: 34px; color: var(--text); }
+.key.w2 { width: 139px; }
+.key.w3 { width: 209px; font-size: 30px; }
+.key .icon { width: 34px; height: 34px; vertical-align: -6px; }
+.key.focused { background: #f0f0f0; color: #000; border-radius: 6px; }
+.search-results { padding-left: 514px; }
+
+/* ---- sign in ---- */
+.login { display: flex; padding: 40px 0 0 98px; }
+.login-steps { width: 860px; margin-right: 104px; }
+.login h1 { font-size: 48px; font-weight: 800; margin: 0 0 40px; }
+.step { display: flex; align-items: center; margin-bottom: 32px; }
+.step img { width: 150px; height: 100px; object-fit: contain; margin-right: 28px; flex: 0 0 auto; }
+.step .n { color: var(--green); font-size: 20px; font-weight: 700; }
+.step .t { font-size: 28px; line-height: 1.35; margin-top: 4px; }
+.login-qr { text-align: center; padding-top: 20px; }
+.qr-box { width: 420px; height: 420px; padding: 26px; background: #fff; border-radius: 20px; }
+.qr-box img { width: 368px; height: 368px; image-rendering: pixelated; }
+.login-code { font-size: 64px; font-weight: 800; letter-spacing: 12px; color: var(--green); margin-top: 28px; }
+.login-state { font-size: 24px; color: var(--muted); margin-top: 12px; }
+
+/* ---- player (StreamerHeaderOverlay, PlayerToolbarIconButton 26dp) ---- */
+#player { position: fixed; z-index: 10; left: 0; top: 0; width: 1920px; height: 1080px; }
+.player-status { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; padding-top: 420px; text-align: center; background: #000; z-index: 3; }
+.ps-title { font-size: 40px; font-weight: 800; margin-top: 34px; }
+.ps-detail { font-size: 26px; color: var(--muted); margin-top: 12px; }
+.ps-buttons { margin-top: 34px; }
+.spinner { width: 72px; height: 72px; margin: 0 auto; border-radius: 50%; border: 7px solid #262626; border-top-color: var(--green); animation: spin .9s linear infinite; }
+.player-status.error .spinner, .player-status.ended .spinner { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 2; }
+.ov-head { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; padding: 22px 60px 40px 37px;
+  background: radial-gradient(ellipse at 0 0, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 70%); }
+.ov-avatar-wrap { position: relative; width: 140px; height: 150px; flex: 0 0 auto; }
+.ov-avatar-wrap .avatar { width: 140px; height: 140px; border: 4px solid var(--green); }
+.ov-live { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); background: var(--green); color: #fff; font-size: 22px; font-weight: 800;
+  padding: 2px 14px; border-radius: 8px; }
+.ov-text { margin-left: 26px; padding-top: 4px; }
+.ov-line { display: flex; align-items: center; }
+.ov-name { font-size: 44px; font-weight: 800; }
+.verified { display: inline-block; width: 28px; height: 28px; margin-left: 10px; background: url(../img/ic_verified.svg) center/contain no-repeat; }
+.ov-viewers { display: flex; align-items: center; font-size: 26px; font-weight: 700; margin-left: 14px; }
+.ov-viewers:before { content: '·'; margin-right: 14px; }
+.ov-viewers .icon { width: 26px; height: 26px; margin-right: 6px; }
+.ov-title { font-size: 26px; color: #d6d6d6; margin-top: 8px; max-width: 1100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-cat { font-size: 26px; font-weight: 700; margin-top: 8px; }
+.ov-cat span:first-child { color: var(--green); margin-right: 18px; }
+.ov-bottom { position: absolute; left: 0; bottom: 0; width: 1920px; height: 260px; background: linear-gradient(0deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 100%); }
+/* timeline: live = full green bar; rewound/video = position, knob when focused or seeking */
+.ov-time { position: absolute; left: 70px; bottom: 76px; font-size: 28px; font-weight: 700; }
+#player.mode-live .ov-time:before { content: ''; display: inline-block; width: 20px; height: 20px; border-radius: 50%; background: var(--green);
+  margin-right: 8px; vertical-align: -2px; }
+.seek-end { margin-left: 14px; color: var(--muted); font-weight: 600; }
+.seek-end.live { color: var(--green); font-weight: 800; }
+.seek { position: absolute; left: 0; right: 32px; bottom: 22px; height: 30px; padding-top: 12px; }
+.seek-track { height: 6px; background: rgba(255,255,255,.28); }
+.seek-fill { height: 100%; background: var(--green); }
+.seek-knob { position: absolute; top: 5px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--green); display: none; }
+.seek.focused .seek-track, .seek.seeking .seek-track { height: 10px; margin-top: -2px; }
+.seek.focused .seek-knob, .seek.seeking .seek-knob { display: block; background: #fff; box-shadow: 0 0 0 5px var(--green); }
+#player.mode-dvr .ov-live { background: #5a5f63; }
+#player.mode-vod .ov-live, #player.mode-vod .ov-viewers:before { display: none; }
+#player.mode-vod .ov-viewers { margin-left: 18px; }
+.ov-buttons { position: absolute; right: 70px; bottom: 68px; display: flex; align-items: flex-end; }
+.tb { position: relative; width: 56px; height: 56px; margin-left: 18px; border-radius: 50%; text-align: center; padding-top: 13px; color: var(--text); }
+.tb .icon { width: 30px; height: 30px; }
+.tb img.avatar { width: 46px; height: 46px; margin: -8px auto 0; }
+.tb .label { position: absolute; left: 0; bottom: 64px; font-size: 26px; font-weight: 700; white-space: nowrap; visibility: hidden; }  /* left: set by placeLabels() */
+.tb.focused { background: var(--text); color: #000; }
+.tb.focused .label { visibility: visible; color: var(--text); }
+.tb img.golive { height: 28px; margin: 1px auto 0; }
+.tb:first-child img.golive { margin-left: -2px; }
+
+/* ---- chat (no header, like the TV app) ---- */
+.chat { position: absolute; z-index: 1; right: 0; top: 0; width: 535px; height: 1080px; display: flex; flex-direction: column;
+  background: linear-gradient(90deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,.78) 30%, rgba(0,0,0,.82) 100%); }
+#player.chat-on .ov-head .ov-title { max-width: 900px; }
+.chat-pinned { flex: 0 0 auto; margin: 130px 18px 0; padding: 12px 16px; border-radius: 12px; background: rgba(36,39,44,.92); font-size: 21px; }
+.chat-pinned small { display: flex; align-items: center; color: var(--green); font-weight: 700; font-size: 17px; margin-bottom: 4px; }
+.chat-pinned small img { width: 18px; height: 18px; margin-right: 6px; }
+.chat-list { flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 130px 18px 110px; }
+.chat-pinned:not([hidden]) + .chat-list { padding-top: 12px; }
+.msg { font-size: 24px; line-height: 36px; word-wrap: break-word; }
+.msg .u { font-weight: 700; }
+.msg .badge { display: inline-block; width: 22px; height: 22px; margin-right: 6px; vertical-align: -3px; }
+.msg .emote { display: inline-block; height: 32px; vertical-align: -8px; margin: 0 2px; }
+.msg.event { color: var(--green); font-weight: 700; }
+.msg.sys { color: var(--muted); }
+
+/* ---- dialogs and toast ---- */
+.modal { position: fixed; z-index: 40; left: 0; top: 0; width: 1920px; height: 1080px; background: rgba(0,0,0,.8); }
+.dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 720px; max-width: 1200px; padding: 52px 56px;
+  background: var(--surface); border-radius: 24px; }
+.dialog h2 { font-size: 40px; font-weight: 800; margin: 0 0 16px; }
+.dialog p { font-size: 26px; color: var(--muted); margin: 0 0 32px; line-height: 1.4; white-space: pre-line; }
+.dialog .qr-image { display: block; width: 400px; height: 400px; margin: 0 auto 32px; padding: 20px; background: #000; border-radius: 20px; image-rendering: pixelated; }
+.dialog .qr-box { margin: 0 auto 32px; }
+.opt { height: 64px; line-height: 64px; padding: 0 26px; border-radius: 14px; font-size: 26px; font-weight: 600; margin-bottom: 8px; }
+.opt.sel { color: var(--green); }
+.opt.sel:after { content: ''; float: right; width: 28px; height: 64px; background: url(../img/ic_check.svg) center/28px no-repeat; }
+.opt.focused { background: var(--text); color: #000; }
+.toast { position: fixed; z-index: 50; left: 50%; bottom: 64px; transform: translateX(-50%); background: #262626; font-size: 24px; font-weight: 600;
+  padding: 18px 32px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+
+/* ---- profile button: active while Account is open ---- */
+#navUser.active img { box-shadow: 0 0 0 4px var(--green); }
+#navUser.active .connect { color: var(--green); }
+
+/* ---- streamer page ---- */
+.ch-banner { position: relative; width: 1920px; height: 400px; margin: -104px 0 0 -48px; background: #111; overflow: hidden; }
+.ch-banner img { width: 100%; height: 100%; object-fit: cover; }
+.ch-shade { position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.45) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,.8) 82%, #000 100%); }
+.ch-head { position: relative; display: flex; align-items: flex-end; margin-top: -120px; }
+.ch-head .avatar { width: 180px; height: 180px; border: 6px solid #000; }
+.ch-head .avatar.live { border-color: var(--green); }
+.ch-text { margin-left: 34px; min-width: 0; padding-bottom: 4px; }
+.ch-name { display: flex; align-items: center; font-size: 52px; font-weight: 800; }
+.ch-name img { width: 40px; height: 40px; margin-left: 14px; }
+.ch-sub { font-size: 26px; color: var(--muted); margin-top: 6px; }
+.ch-live { color: var(--green); font-weight: 700; }
+.ch-title, .ch-bio { font-size: 24px; color: #d6d6d6; margin-top: 10px; max-width: 1300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-buttons { margin-top: 22px; }
+
+/* ---- Account (like the Kick app's Account screen) ---- */
+.acct { width: 1100px; margin-left: 362px; }
+.acct-sec { font-size: 38px; font-weight: 800; margin: 30px 0 10px; }
+.acct-sec:first-child { margin-top: 8px; }
+.acct-note { font-size: 24px; color: var(--muted); margin: -2px 0 12px; }
+.acct-fade { position: absolute; left: 0; top: 0; width: 1920px; height: 150px; background: linear-gradient(#000 60%, rgba(0, 0, 0, 0)); pointer-events: none; }
+.acct-row { display: flex; align-items: center; height: 88px; padding: 0 22px; border-radius: 16px; font-size: 32px; }
+.acct-row .icon { width: 36px; height: 36px; flex: 0 0 auto; }
+.acct-row .icon:last-child { width: 44px; height: 44px; margin-right: -8px; }  /* the official chevron has wide padding */
+.acct-row .label { margin-left: 26px; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct-row .value { color: var(--muted); font-size: 26px; margin: 0 18px; white-space: nowrap; }
+.acct-row.focused { background: var(--text); color: #000; }
+.acct-row.focused .value { color: #444; }
+.acct-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; margin-left: -8px; flex: 0 0 auto; }
+.acct-logo { width: 230px; margin: 56px auto 34px; }
+.acct-logout { display: flex; justify-content: center; align-items: center; width: 860px; height: 96px; margin: 0 auto 30px; border-radius: 48px;
+  background: #33363b; font-size: 34px; font-weight: 800; }
+.acct-logout .icon { width: 36px; height: 36px; margin-right: 18px; }
+.acct-logout.focused { background: var(--text); color: #000; }
+/* KickSwitch (official colors): on = green thumb on a dark track; off = grey ring and thumb. */
+.switch { position: relative; flex: 0 0 auto; width: 84px; height: 50px; border-radius: 25px; background: #424242; border: 3px solid #a8b1b8; box-sizing: border-box; }
+.switch .knob { position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; border-radius: 50%; background: #a8b1b8; transition: left .15s, width .15s, height .15s, top .15s; }
+.switch.on { background: #313538; border-color: #313538; }
+.switch.on .knob { left: 36px; top: 4px; width: 36px; height: 36px; background: var(--green); }
+
+/* Paused: the official play icon in a round badge in the middle of the picture. */
+.pause-badge { position: absolute; left: 50%; top: 50%; z-index: 2; display: flex; align-items: center; justify-content: center;
+  width: 168px; height: 168px; margin: -84px 0 0 -84px; border-radius: 50%; background: rgba(0, 0, 0, .6); }
+.pause-badge .icon { width: 88px; height: 88px; margin-left: 6px; color: #fff; -webkit-mask-image: url(../img/ic_play.svg); }
+#player.chat-on .pause-badge { left: calc((1920px - 560px) / 2); }

@@ -1,0 +1,19 @@
+# Packages and Tizen signing output: certificates and signatures stay on the PC that signs.
+*.wgt
+*.p12
+*.pfx
+*.pem
+*.key
+*.crt
+author-signature.xml
+signature*.xml
+.sign/
+.buildResult/
+.tproject
+.project
+
+# Local tooling
+__pycache__/
+node_modules/
+*.log
+.DS_Store
