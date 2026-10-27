@@ -31,8 +31,8 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 |:---:|:---:|
 | <img src="docs/screenshots/categories.jpg" alt="Categories"> | <img src="docs/screenshots/live.jpg" alt="Live channels"> |
 | Categories | Live |
-| <img src="docs/screenshots/search.jpg" alt="Search"> | |
-| Search | |
+| <img src="docs/screenshots/search.jpg" alt="Search"> | <img src="docs/screenshots/player.jpg" alt="Player"> |
+| Search | Player |
 
 ## Compatibility
 
