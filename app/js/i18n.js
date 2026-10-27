@@ -1,5 +1,5 @@
 /* App language. K.t('<English text>', { vars }) gives the text in the chosen language (texts in
-   js/i18n-data.js, built by i18n/build_i18n.py); English is the source and the fallback. The same
+   js/i18n-data.js); English is the source and the fallback. The same
    language also picks which streams Kick lists, until a content language is chosen
    (K.prefs.contentLanguage, 'all' = every language). Elements with data-i18n get
    their text at start-up. Changing the language reloads the app. */

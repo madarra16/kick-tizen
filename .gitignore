@@ -17,3 +17,6 @@ __pycache__/
 node_modules/
 *.log
 .DS_Store
+
+# Build output (python3 build.py)
+dist/
