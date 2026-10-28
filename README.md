@@ -45,7 +45,7 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 **Before you start:** on the TV, open **Apps**, type `12345` with the remote, switch
 **Developer Mode** on, and enter the IP address of the PC or phone you install from. Restart the TV.
 
-### With Apps2Samsung (easiest)
+### With Apps2Samsung
 
 [Apps2Samsung](https://github.com/Apps2Samsung/Apps2Samsung) signs and installs the app for you.
 Kick is in its app catalog, so you don't have to download anything yourself.
@@ -62,17 +62,6 @@ From the command line (Apps2Samsung CLI):
 ```
 apps2samsung-cli install Kick --tv <tv-ip>
 ```
-
-### With AeroTizen or Tizen Studio
-
-Download `Kick-<version>.wgt` from the [latest release](../../releases/latest), then sign and
-install it with a Samsung certificate made for your TV, for example:
-
-```
-aerotizen --tv <tv-ip> install Kick-1.1.0.wgt
-```
-
-The package is unsigned on purpose: Samsung TVs only install apps signed for that particular TV.
 
 ## Build
 
