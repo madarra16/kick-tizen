@@ -11,9 +11,9 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 ![Languages](https://img.shields.io/badge/languages-10-53FC18?style=flat-square&labelColor=0B0E0F)
 ![No build step](https://img.shields.io/badge/build-none%20(plain%20ES5)-555?style=flat-square)
 
-<a href="docs/demo/demo.mp4"><img src="docs/demo/demo-poster.jpg" alt="Watch the demo video (20 s)" width="900"></a>
+<a href="docs/demo/demo.mp4"><img src="docs/demo/demo.webp" alt="Demo: Home, Categories, channel page, player with chat and Settings" width="900"></a>
 
-<sub>▶ Click to watch the 20-second demo</sub>
+<sub>Click the animation for the video with sound</sub>
 
 </div>
 
@@ -95,7 +95,7 @@ It only fetches from `*.kick.com` and Kick's video CDN (`*.live-video.net`), ove
 | `app/service/helper.js` | The background helper service |
 | `app/js/i18n-data.js` | All translations (Kick's own where the official app has the same text) |
 | `build.py` | Packages `app/` as a `.wgt` |
-| `docs/demo/` | The demo video in this README |
+| `docs/demo/` | The demo animation and video in this README |
 
 ## Credits
 
