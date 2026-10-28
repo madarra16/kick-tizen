@@ -11,28 +11,25 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 ![Languages](https://img.shields.io/badge/languages-10-53FC18?style=flat-square&labelColor=0B0E0F)
 ![No build step](https://img.shields.io/badge/build-none%20(plain%20ES5)-555?style=flat-square)
 
-<img src="docs/screenshots/home.jpg" alt="Home screen with the featured stream carousel" width="900">
+<a href="docs/demo/demo.mp4"><img src="docs/demo/demo-poster.jpg" alt="Watch the demo video (20 s)" width="900"></a>
+
+<sub>▶ Click to watch the 20-second demo</sub>
 
 </div>
 
 ## Features
 
 - **Watch live** with chat, resolution choice and **rewinding** of the running stream
+- **Continue Watching**: past broadcasts resume where you stopped
 - **Home, Categories, Live, Following and Search**, in the layout of Kick's TV app
-- **Streamer pages** with clips and recent broadcasts
+- **Top clips** of today, this week, this month or all time, and **sorting** of live channels
+- **Streamer pages** with clips, recent broadcasts, schedule, recently streamed categories and bio
+- **Subscribe, Join the Chat and Report** from the player, finished on your phone with a QR code
+- **Raids** take you along to the raided channel, and level badges show in chat
 - **Sign in with a QR code**, approved in the Kick phone app
 - **Fast on old TVs**: a background helper caches video and skips the TV's slow name lookups
 - **10 languages**: English, Español, Deutsch, Português, Français, 中文, 日本語, 한국어, हिन्दी, العربية
-- **Content settings**: content language, hide gambling streams, hide 18+ streams
-
-## Screenshots
-
-| | |
-|:---:|:---:|
-| <img src="docs/screenshots/categories.jpg" alt="Categories"> | <img src="docs/screenshots/live.jpg" alt="Live channels"> |
-| Categories | Live |
-| <img src="docs/screenshots/search.jpg" alt="Search"> | <img src="docs/screenshots/player.jpg" alt="Player"> |
-| Search | Player |
+- **Content settings**: content language, hide gambling, 18+ or pools / hot tubs streams, and a warning before 18+ content
 
 ## Compatibility
 
@@ -45,15 +42,35 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 
 ## Install on a TV
 
-1. Download `Kick-<version>.wgt` from the [latest release](../../releases/latest).
-2. On the TV, open **Apps**, type `12345` with the remote, switch **Developer Mode** on, and enter
-   your PC's IP address. Restart the TV.
-3. Sign and install the package with a Samsung certificate made for your TV, for example with
-   Tizen Studio or the AeroTizen CLI:
+**Before you start:** on the TV, open **Apps**, type `12345` with the remote, switch
+**Developer Mode** on, and enter the IP address of the PC or phone you install from. Restart the TV.
 
-   ```
-   aerotizen --tv <tv-ip> install Kick-1.0.0.wgt
-   ```
+### With Apps2Samsung (easiest)
+
+[Apps2Samsung](https://github.com/Apps2Samsung/Apps2Samsung) signs and installs the app for you.
+Kick is in its app catalog, so you don't have to download anything yourself.
+
+1. Install [Apps2Samsung 3.0 or newer](https://github.com/Apps2Samsung/Apps2Samsung/releases) on your PC or phone.
+2. Pick your TV, find **Kick** in the app list and press **Install**. The first time, sign in with
+   your Samsung account so Apps2Samsung can make a certificate for your TV.
+
+To install a downloaded package instead, take `Kick-<version>.wgt` from the
+[latest release](../../releases/latest) and choose **Custom WGT File** in Apps2Samsung.
+
+From the command line (Apps2Samsung CLI):
+
+```
+apps2samsung-cli install Kick --tv <tv-ip>
+```
+
+### With AeroTizen or Tizen Studio
+
+Download `Kick-<version>.wgt` from the [latest release](../../releases/latest), then sign and
+install it with a Samsung certificate made for your TV, for example:
+
+```
+aerotizen --tv <tv-ip> install Kick-1.1.0.wgt
+```
 
 The package is unsigned on purpose: Samsung TVs only install apps signed for that particular TV.
 
@@ -89,7 +106,7 @@ It only fetches from `*.kick.com` and Kick's video CDN (`*.live-video.net`), ove
 | `app/service/helper.js` | The background helper service |
 | `app/js/i18n-data.js` | All translations (Kick's own where the official app has the same text) |
 | `build.py` | Packages `app/` as a `.wgt` |
-| `docs/screenshots/` | The pictures in this README |
+| `docs/demo/` | The demo video in this README |
 
 ## Credits
 

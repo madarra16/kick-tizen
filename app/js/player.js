@@ -10,7 +10,8 @@
 
   var IDLE_MS = 4 * 3600 * 1000, OVERLAY_MS = 6000, SEEK_APPLY_MS = 800, LIVE_SNAP_S = 20, RETRIES = 2, START_MS = 25000;
   var state = null, seq = 0, shown = false, paused = false, seek = null;
-  var overlayTimer = null, refreshTimer = null, idleTimer = null, clockTimer = null, seekTimer = null, startTimer = null;
+  var overlayTimer = null, refreshTimer = null, idleTimer = null, clockTimer = null, seekTimer = null, startTimer = null, resumeTimer = null;
+  var matureOk = {};  // channels whose 18+ warning was accepted in this session
 
   function av() { return window.webapis && webapis.avplay; }
   function errText(e) { return e && typeof e === 'object' ? (e.message || e.name || String(e)) : String(e); }
@@ -123,7 +124,8 @@
     K.$('ovUptime').textContent = K.hms(pos);
     K.$('seekBar').classList.toggle('seeking', !!seek);
     if (state.mode === 'vod') { end.textContent = '/ ' + K.hms(max); end.className = 'seek-end'; }
-    else if (live) { end.textContent = K.t('LIVE'); end.className = 'seek-end live'; }
+    // Live: uptime only, as in the official app; streams without a recording say up front that they can't rewind.
+    else if (live) { end.textContent = state.rec ? '' : K.t('Rewind not available'); end.className = 'seek-end live'; }
     else { end.textContent = K.t('{t} behind live', { t: '−' + K.hms(max - pos) }); end.className = 'seek-end behind'; }
   }
 
@@ -143,14 +145,17 @@
   }
 
   // Round toolbar buttons (ToolbarAvatarButton / PlayerToolbarIconButton) in the official order:
-  // channel, follow, resolution, chat (live). The focused one shows its label.
+  // channel, follow, subscribe, resolution, chat (live), report. The focused one shows its label.
   function buildButtons(focusSeek) {
     var row = K.$('ovButtons'), prev = K.focus.current && K.focus.current.getAttribute('data-b'), c = channelInfo(), list = [];
     if (state.mode === 'dvr') { list.push(['golive', K.t('Go live'), goLive, 'golive']); }
     list.push(['channel', c.name || K.t('Channel'), openChannelPage, null]);
     if (c.slug) { list.push(['follow', K.t(state.following ? 'Unfollow' : 'Follow'), follow, state.following ? 'following' : 'follow']); }
+    if (c.slug) { list.push(['subscribe', K.t('Subscribe'), subscribe, 'subscribe']); }
     list.push(['quality', K.t('Resolution') + ': ' + qualityLabel(), chooseQuality, 'hd']);
     if (state.kind === 'live') { list.push(['chat', K.t(state.chat ? 'Hide chat' : 'Chat'), toggleChat, 'chat']); }
+    if (state.kind === 'live' && state.chat) { list.push(['message', K.t('Join the Chat'), joinChat, 'message']); }
+    if (c.slug) { list.push(['report', K.t('Report'), report, 'report']); }
     row.textContent = '';
     list.forEach(function (b) {
       var e = K.el('div', 'tb f');
@@ -189,6 +194,56 @@
     K.modal.show({ title: K.t(un ? 'Unfollow {name}' : 'Follow {name}', { name: c.name }),
       text: K.t(un ? 'Scan the QR code with your phone to unfollow {name} in the Kick app.' : 'Scan the QR code with your phone to follow {name} in the Kick app.', { name: c.name }),
       qr: 'https://kick.com/' + c.slug + '?follow=' + !un, buttons: [[K.t('Done'), function () { followed = null; checkFollow(); }, true]] });
+  }
+
+  // Subscribing, reporting and chatting happen on the phone too: a QR code to the same kick.com
+  // links the official TV app uses.
+  function phoneAction(title, text, url) {
+    K.modal.show({ title: title, text: text, qr: url, buttons: [[K.t('Done'), null, true]] });
+  }
+  function subscribe() {
+    var c = channelInfo();
+    phoneAction(K.t('Subscribe to {name}', { name: c.name }), K.t('Scan the QR code with your phone to subscribe to {name} in the Kick app.', { name: c.name }),
+      'https://kick.com/' + c.slug + '?subscribe=true');
+  }
+  function report() {
+    var c = channelInfo();
+    phoneAction(K.t('Report'), K.t('Scan the QR code with your phone to report {name} in the Kick app.', { name: c.name }), 'https://kick.com/' + c.slug + '?report=true');
+  }
+  function joinChat() {
+    var c = channelInfo();
+    phoneAction(K.t('Join the conversation with {name}', { name: c.name }), K.t('Scan the QR code with the camera on your phone to send a message'),
+      'https://kick.com/' + c.slug + '?chat=true');
+  }
+
+  // Kick asks before 18+ content: once per channel in a session, as kick.com does. Cancel closes.
+  function gateMature(mature, slug, go) {
+    if (!mature || matureOk[slug]) { return go(); }
+    clearTimeout(startTimer);
+    K.modal.show({ title: K.t('18+ Mature Content Warning'),
+      text: K.t('This content has been marked as mature. You must be 18 or older to view this content.'),
+      buttons: [[K.t('Start watching'), function () { matureOk[slug] = true; go(); }, true], [K.t('Cancel'), close]], onClose: close });
+  }
+
+  // A raid: like kick.com, move to the hosted channel after a short countdown. Stay keeps this one.
+  function raid(hosted) {
+    if (!state || state.kind !== 'live' || K.modal.isOpen()) { return; }
+    var st = state, n = 8, name = hosted.username || (hosted.user && hosted.user.username) || hosted.slug, timer = null;
+    function text() { return K.t('You will be redirected in') + ' ' + n; }
+    function go() { clearInterval(timer); if (state === st) { K.player.open({ slug: hosted.slug, name: name }); } }
+    K.modal.show({ title: K.t('Moving to {name}', { name: name }), text: text(),
+      buttons: [[K.t('Go now'), go, true], [K.t('Stay'), function () { clearInterval(timer); }]], onClose: function () { clearInterval(timer); } });
+    timer = setInterval(function () {
+      if (state !== st || !K.modal.isOpen()) { clearInterval(timer); return; }
+      if (--n <= 0) { clearInterval(timer); K.modal.close(); go(); return; }
+      var p = document.querySelector('#modal .dialog p');
+      if (p) { p.textContent = text(); }
+    }, 1000);
+  }
+
+  // Past broadcasts remember where they were left (Continue Watching on Home).
+  function saveResume() {
+    if (state && state.kind === 'vod' && state.item.kind === 'video' && shown) { K.resume.save(state.item, position(), (state.durationMs || 0) / 1000); }
   }
 
   // Signed in: a filled heart when this channel is already followed.
@@ -238,18 +293,20 @@
   }
 
   // ---- chat ----
+  // The chat connection runs for every live stream; with the chat hidden it only listens for
+  // the stream ending and for raids.
   function startChat() {
     var ch = state.channel;
-    K.$('chat').hidden = false;
-    K.$('player').classList.add('chat-on');
-    K.chat.start({ channelId: ch.id, roomId: ch.chatroom && ch.chatroom.id, slug: ch.slug, subBadges: ch.subscriber_badges || [] });
+    K.$('chat').hidden = !state.chat;
+    K.$('player').classList.toggle('chat-on', !!state.chat);
+    K.chat.start({ channelId: ch.id, roomId: ch.chatroom && ch.chatroom.id, slug: ch.slug, subBadges: ch.subscriber_badges || [], quiet: !state.chat });
   }
   function stopChat() { K.chat.stop(); K.$('chat').hidden = true; K.$('player').classList.remove('chat-on'); }
   function toggleChat() {
     state.chat = !state.chat;
     K.prefs.chat = state.chat;
     K.savePrefs();
-    if (state.chat) { startChat(); } else { stopChat(); }
+    startChat();
     buildButtons();
     armOverlay();
   }
@@ -346,8 +403,9 @@
   }
 
   function completed() {
-    if (state.mode === 'dvr') { K.toast(K.t('Back to live'), 1500); goLive(); return; }
+    if (state.mode === 'dvr') { goLive(); return; }
     if (state.mode === 'vod') {
+      if (state.item.kind === 'video') { K.resume.save(state.item, 0); }
       if (state.index < state.list.length - 1) { zap(1); return; }
       seq++;
       avStop();
@@ -380,21 +438,25 @@
         return status('ended', K.t('{name} is offline', { name: (ch.user || {}).username || s.name }), K.t('This channel is not live right now.'),
           [[K.t('Channel'), openChannelPage, true], [K.t('Back'), close]]);
       }
-      if (state.chat) { startChat(); }
-      // The running stream's recording, for rewinding.
-      K.api.channelVideos(ch.slug, function (e, vids) {
-        var cur = (vids || []).filter(function (v) { return v.live; })[0];
-        if (state && state.channel === ch) { state.rec = cur ? { master: cur.url, qualities: null } : null; warmRec(); }
-      });
-      K.helper.wait(function () {
+      gateMature(ls.is_mature, ch.slug, function () {
         if (my !== seq) { return; }
-        if (!K.helper.ready()) { return fail(K.t('Helper did not start'), K.t('The stream helper service is not running. Try again.')); }
-        loadQualities(ch.playback_url, function (list) {
-          if (my !== seq) { return; }
-          state.liveQualities = state.qualities = list;
-          start(pick(list), my, 0);
+        armStart(my);
+        startChat();
+        // The running stream's recording, for rewinding.
+        K.api.channelVideos(ch.slug, function (e, vids) {
+          var cur = (vids || []).filter(function (v) { return v.live; })[0];
+          if (state && state.channel === ch) { state.rec = cur ? { master: cur.url, qualities: null } : null; warmRec(); }
         });
-      }, true);
+        K.helper.wait(function () {
+          if (my !== seq) { return; }
+          if (!K.helper.ready()) { return fail(K.t('Helper did not start'), K.t('The stream helper service is not running. Try again.')); }
+          loadQualities(ch.playback_url, function (list) {
+            if (my !== seq) { return; }
+            state.liveQualities = state.qualities = list;
+            start(pick(list), my, 0);
+          });
+        }, true);
+      });
     });
   }
 
@@ -487,8 +549,7 @@
   // Left/right: 10 s steps, 30 s after a few presses, 2 min when held; applied after a short pause.
   function nudge(dir) {
     if (!shown) { return; }
-    if (state.mode === 'live' && !seek && dir > 0) { K.toast(K.t("You're watching live"), 1200); return; }
-    if (state.mode === 'live' && !state.rec) { K.toast(K.t("Rewinding isn't available for this stream"), 2000); return; }
+    if (state.mode === 'live' && ((!seek && dir > 0) || !state.rec)) { return; }
     if (!seek) { seek = { target: position(), presses: 0 }; }
     seek.presses++;
     var step = seek.presses > 8 ? 120 : seek.presses > 3 ? 30 : 10;
@@ -512,7 +573,7 @@
     if (state.mode === 'dvr' && (ms < 0 || (state.durationMs && ms > state.durationMs - 5000))) { startDvr(target); return; }
     if (state.durationMs) { ms = Math.min(ms, state.durationMs - 1000); }
     state.pos = Math.max(0, ms);
-    try { p.seekTo(state.pos, function () {}, function () { K.toast(K.t("Can't jump there"), 1500); }); } catch (e) { K.toast(K.t("Can't jump there"), 1500); }
+    try { p.seekTo(state.pos, function () {}, function () { drawSeek(); }); } catch (e) { drawSeek(); }
     drawSeek();
   }
 
@@ -541,7 +602,6 @@
   function zap(delta) {
     if (!state || state.list.length < 2) { return; }
     var i = (state.index + delta + state.list.length) % state.list.length, next = state.list[i];
-    K.toast(next.title && state.kind === 'vod' ? next.title : (next.name || next.slug), 1500);
     if (state.kind === 'vod') { K.player.openVod(next, state.list, i); } else { K.player.open(next, state.list, i); }
   }
 
@@ -562,6 +622,7 @@
 
   function close() {
     if (!state) { return; }
+    saveResume();
     seq++;
     clearTimeout(seekTimer);
     clearTimeout(startTimer);
@@ -571,6 +632,7 @@
     hideOverlay();
     clearInterval(refreshTimer);
     clearInterval(idleTimer);
+    clearInterval(resumeTimer);
     state = null;
     K.$('player').hidden = true;
     document.documentElement.classList.remove('playing');
@@ -579,7 +641,7 @@
 
   document.addEventListener('visibilitychange', function () {
     if (!state) { return; }
-    if (document.hidden) { state.resumeAt = state.mode === 'live' ? 0 : position(); seq++; avStop(); K.chat.stop(); }
+    if (document.hidden) { saveResume(); state.resumeAt = state.mode === 'live' ? 0 : position(); seq++; avStop(); K.chat.stop(); }
     else if (state.kind === 'vod') { loadVod(state.resumeAt); } else { loadLive(); }
   });
 
@@ -592,6 +654,7 @@
     clearInterval(idleTimer);
     refreshTimer = setInterval(refresh, 60000);
     idleTimer = setInterval(checkIdle, 60000);
+    resumeTimer = setInterval(saveResume, 10000);
   }
 
   K.player = {
@@ -607,12 +670,24 @@
     },
 
     // Clip or past broadcast: item = { kind: 'clip'|'video', url, title, duration, views, created, category, channel: { slug, name, avatar } }.
+    // A past broadcast continues where it was left.
     openVod: function (item, list, index) {
+      saveResume();
       begin();
       stopChat();
       state = { kind: 'vod', item: item, list: list || [item], index: index || 0, qualities: [], quality: K.prefs.quality, chat: false, pos: 0, retries: 0, base: 0 };
-      loadVod(0);
+      var at = item.kind === 'video' ? K.resume.get(item) : 0, st = state;
+      seq++;
+      avStop();
+      hideOverlay();
+      status('', item.title || (item.channel || {}).name, '');
+      gateMature(item.mature, (item.channel || {}).slug || item.url, function () {
+        if (state !== st) { return; }
+        loadVod(at);
+      });
     },
+
+    raid: raid,
 
     ended: function () {
       if (!state) { return; }

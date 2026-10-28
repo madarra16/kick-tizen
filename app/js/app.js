@@ -108,8 +108,9 @@
 
     go: function (name) {
       stack.forEach(function (s) { if (!s.root) { destroy(s); } });
-      var s = roots[name] || (roots[name] = K.screens[name]());
+      var fresh = !roots[name], s = roots[name] || (roots[name] = K.screens[name]());
       stack = [s];
+      if (!fresh && s.refresh) { s.refresh(); }
       show(s);
     },
     push: function (s) { inNav = false; stack.push(s); show(s); },
@@ -129,13 +130,18 @@
     authChanged: function () { updateUser(); app.reload('following'); app.reload('settings'); },
 
     prefsChanged: function (key) {
-      if (key === 'hideGambling' || key === 'hideMature' || key === 'language') {
+      if (key === 'hideGambling' || key === 'hideMature' || key === 'hidePools' || key === 'language') {
         ['home', 'categories', 'live', 'search'].forEach(function (n) { if (roots[n] && stack[0] !== roots[n]) { destroy(roots[n]); delete roots[n]; } });
       }
     },
 
     playerOpened: function () { inNav = false; },
-    playerClosed: function () { if (current()) { K.focus.setScope(current().el); } }
+    playerClosed: function () {
+      var s = current();
+      if (!s) { return; }
+      if (s.refresh) { s.refresh(); }  // Home's Continue Watching
+      K.focus.setScope(s.el);
+    }
   };
 
   Array.prototype.forEach.call(nav.querySelectorAll('[data-go]'), function (n) {

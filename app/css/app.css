@@ -36,6 +36,9 @@ img { display: block; }
 .i-following { -webkit-mask-image: url(../img/ic_follow_filled.svg); }  /* the official heart's outline, filled */
 .i-viewers { -webkit-mask-image: url(../img/ic_viewers.svg); }
 .i-hd { -webkit-mask-image: url(../img/ic_hd.svg); }
+.i-subscribe { -webkit-mask-image: url(../img/ic_subscribe.svg); }
+.i-report { -webkit-mask-image: url(../img/ic_report.svg); }
+.i-message { -webkit-mask-image: url(../img/ic_mobile_devices.svg); }
 .i-device { -webkit-mask-image: url(../img/ic_mobile_devices.svg); }
 .i-clear { -webkit-mask-image: url(../img/ic_delete.svg); }
 .i-space { -webkit-mask-image: url(../img/keyboard_space_bar.svg); }
@@ -104,6 +107,25 @@ img { display: block; }
 .card .vtitle { font-size: 26px; font-weight: 700; line-height: 1.2; max-height: 62px; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .card.vod .info { left: 18px; }
+.card .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: rgba(255,255,255,.25); }  /* Continue Watching */
+.card .progress i { display: block; height: 100%; background: var(--green); }
+
+/* ---- pill rows above grids: sort order, Categories / Clips, clip range ---- */
+.pills { margin-bottom: 30px; }
+.pills .btn { height: 52px; line-height: 52px; padding: 0 28px; margin-right: 14px; }
+
+/* ---- channel page: scheduled streams and About ---- */
+.sched { width: 430px; height: 170px; border-radius: 16px; background: var(--surface); padding: 22px 26px; box-sizing: border-box; }
+.sched .when { color: var(--green); font-size: 24px; font-weight: 800; }
+.sched .stitle { font-size: 28px; font-weight: 700; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched .scat { color: var(--muted); font-size: 22px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sched.focused { background: var(--text); color: #000; }
+.sched.focused .when { color: #0b7a00; }
+.sched.focused .scat { color: #444; }
+.about { width: 1300px; border-radius: 16px; background: var(--surface); padding: 28px 34px; box-sizing: border-box; font-size: 26px; line-height: 1.45; }
+.about p { margin: 0 0 14px; white-space: pre-line; }
+.about .link b { display: inline-block; width: 160px; color: var(--muted); font-weight: 700; }
+.about.focused { box-shadow: 0 0 0 5px var(--text); }
 
 /* ---- category card (KickThumbnailCategory: box art only) ---- */
 .cat { position: relative; width: 226px; height: 300px; border-radius: 16px; overflow: hidden; background: var(--surface); }
@@ -207,7 +229,7 @@ img { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .overlay { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 2; }
 .ov-head { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; padding: 22px 60px 40px 37px;
-  background: radial-gradient(ellipse at 0 0, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 70%); }
+  background: radial-gradient(ellipse at 0 0, rgba(0,0,0,.82) 0%, rgba(0,0,0,.55) 45%, rgba(0,0,0,0) 75%); text-shadow: 0 2px 6px rgba(0,0,0,.8); }
 .ov-avatar-wrap { position: relative; width: 140px; height: 150px; flex: 0 0 auto; }
 .ov-avatar-wrap .avatar { width: 140px; height: 140px; border: 4px solid var(--green); }
 .ov-live { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); background: var(--green); color: #fff; font-size: 22px; font-weight: 800;
@@ -228,7 +250,7 @@ img { display: block; }
 #player.mode-live .ov-time:before { content: ''; display: inline-block; width: 20px; height: 20px; border-radius: 50%; background: var(--green);
   margin-right: 8px; vertical-align: -2px; }
 .seek-end { margin-left: 14px; color: var(--muted); font-weight: 600; }
-.seek-end.live { color: var(--green); font-weight: 800; }
+.seek-end.live { color: var(--muted); font-weight: 600; }
 .seek { position: absolute; left: 0; right: 32px; bottom: 22px; height: 30px; padding-top: 12px; }
 .seek-track { height: 6px; background: rgba(255,255,255,.28); }
 .seek-fill { height: 100%; background: var(--green); }
@@ -264,7 +286,7 @@ img { display: block; }
 .msg.event { color: var(--green); font-weight: 700; }
 .msg.sys { color: var(--muted); }
 
-/* ---- dialogs and toast ---- */
+/* ---- dialogs ---- */
 .modal { position: fixed; z-index: 40; left: 0; top: 0; width: 1920px; height: 1080px; background: rgba(0,0,0,.8); }
 .dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 720px; max-width: 1200px; padding: 52px 56px;
   background: var(--surface); border-radius: 24px; }
@@ -276,8 +298,6 @@ img { display: block; }
 .opt.sel { color: var(--green); }
 .opt.sel:after { content: ''; float: right; width: 28px; height: 64px; background: url(../img/ic_check.svg) center/28px no-repeat; }
 .opt.focused { background: var(--text); color: #000; }
-.toast { position: fixed; z-index: 50; left: 50%; bottom: 64px; transform: translateX(-50%); background: #262626; font-size: 24px; font-weight: 600;
-  padding: 18px 32px; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
 
 /* ---- profile button: active while Account is open ---- */
 #navUser.active img { box-shadow: 0 0 0 4px var(--green); }

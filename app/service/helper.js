@@ -145,13 +145,29 @@ function segmentUrl(target, range, list, n) {
 function rewrite(text, src, from) {
   if (text.indexOf('#EXT-X-STREAM-INF') < 0) { return media(text, src, from); }
   function fix(uri) { return proxied(url.resolve(src, uri), from); }
-  return text.split(/\r?\n/).filter(function (line) {
+  var lines = text.split(/\r?\n/).filter(function (line) {
     return line.indexOf('#EXT-X-MEDIA:TYPE=SUBTITLES') !== 0;
   }).map(function (line) {
     if (line && line.charAt(0) !== '#') { return fix(line.trim()); }
     line = line.replace(/,SUBTITLES="[^"]*"/, '');
     return line.replace(/URI="([^"]+)"/g, function (all, uri) { return 'URI="' + fix(uri) + '"'; });
-  }).join('\n') + '\n';
+  });
+  return (from > 0 ? lowFirst(lines) : lines).join('\n') + '\n';
+}
+
+// Rewinding with "Auto" resolution: AVPlay starts on the first variant it is offered. A 1080p
+// recording segment is 10.7 MB against 4.4 MB at 720p, so offering 720p first makes the picture
+// come back about twice as fast; AVPlay switches up on its own afterwards.
+function lowFirst(lines) {
+  var head = [], groups = [], cur = [];
+  lines.forEach(function (l) {
+    if (!groups.length && !cur.length && l.indexOf('#EXT-X-MEDIA:') !== 0 && l.indexOf('#EXT-X-STREAM-INF') !== 0) { head.push(l); return; }
+    cur.push(l);
+    if (l && l.charAt(0) !== '#') { groups.push(cur); cur = []; }
+  });
+  var i = groups.map(function (g) { return /RESOLUTION=\d+x720\b/.test(g.join('\n')); }).indexOf(true);
+  if (i > 0) { groups.unshift(groups.splice(i, 1)[0]); }
+  return head.concat.apply(head, groups).concat(cur);
 }
 
 // Media playlists: segments (and EXT-X-KEY/MAP URIs) point here, byte ranges move into the

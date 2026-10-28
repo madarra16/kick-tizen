@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var K = window.K = { VERSION: '1.0.0', HELPER: 'http://127.0.0.1:47820', HELPER_IMAGES: 'http://127.0.0.1:47821', HELPER_ID: 'KickLive01.Helper' };
+  var K = window.K = { VERSION: '1.1.0', HELPER: 'http://127.0.0.1:47820', HELPER_IMAGES: 'http://127.0.0.1:47821', HELPER_ID: 'KickLive01.Helper' };
 
   K.$ = function (id) { return document.getElementById(id); };
 
@@ -26,7 +26,7 @@
     del: function (key) { try { localStorage.removeItem(key); } catch (e) { /* blocked */ } }
   };
 
-  var PREF_DEFAULTS = { hideGambling: true, hideMature: false, language: 'en', quality: 'auto', chat: true };
+  var PREF_DEFAULTS = { hideGambling: true, hideMature: false, hidePools: false, language: 'en', quality: 'auto', chat: true };
   K.prefs = K.store.get('kick.prefs', {});
   Object.keys(PREF_DEFAULTS).forEach(function (k) { if (!(k in K.prefs)) { K.prefs[k] = PREF_DEFAULTS[k]; } });
   K.savePrefs = function () { K.store.set('kick.prefs', K.prefs); };
@@ -158,6 +158,7 @@
   var LANGS = { en: 'English', de: 'German', es: 'Spanish', fr: 'French', pt: 'Portuguese', it: 'Italian', tr: 'Turkish', ru: 'Russian',
     ar: 'Arabic', pl: 'Polish', nl: 'Dutch', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', hi: 'Hindi', id: 'Indonesian', vi: 'Vietnamese',
     fi: 'Finnish', sv: 'Swedish', no: 'Norwegian', da: 'Danish', cs: 'Czech', ro: 'Romanian', el: 'Greek', hu: 'Hungarian', uk: 'Ukrainian', th: 'Thai' };
+  K.langEnglish = function (code) { return LANGS[String(code || '').toLowerCase()] || ''; };
   // The app's own languages by their own names (as in the language list), others in English.
   K.langName = function (l) {
     l = String(l || '');
@@ -168,13 +169,40 @@
   var GAMBLING = /slots|casino|gambl|poker|blackjack|roulette|sportsbook|betting|stake/i;
   K.isGambling = function (name, parent) { return GAMBLING.test(name || '') || /gambl/i.test(parent || ''); };
 
-  // Respects the content settings; used for every list of streams or categories.
+  // Kick's "Pools, Hot Tubs & Bikinis" category (id 16), the official TV app's third content filter.
+  K.isPools = function (name, slug) { return slug === 'pools-hot-tubs-bikinis' || /^pools, hot tubs/i.test(name || ''); };
+
+  // Respects the content settings; used for every list of streams, clips or categories.
   K.allowStream = function (s) {
     if (K.prefs.hideGambling && K.isGambling(s.category, s.categoryParent)) { return false; }
+    if (K.prefs.hidePools && K.isPools(s.category, s.categorySlug)) { return false; }
     if (K.prefs.hideMature && s.mature) { return false; }
     return true;
   };
-  K.allowCategory = function (c) { return !(K.prefs.hideGambling && K.isGambling(c.name, c.parent)); };
+  K.allowCategory = function (c) {
+    return !(K.prefs.hideGambling && K.isGambling(c.name, c.parent)) && !(K.prefs.hidePools && K.isPools(c.name, c.slug));
+  };
+
+  // Where each past broadcast was left (Continue Watching). Entries for a few seconds in, or near
+  // the end, are dropped: those are finished or barely started.
+  K.resume = (function () {
+    var KEY = 'kick.resume', MAX = 20;
+    function all() { return K.store.get(KEY, []); }
+    function id(item) { return item.kind + ':' + (item.id || item.url); }
+    return {
+      get: function (item) { var k = id(item), e = all().filter(function (x) { return x.key === k; })[0]; return e ? e.sec : 0; },
+      save: function (item, sec, dur) {
+        var k = id(item), list = all().filter(function (x) { return x.key !== k; });
+        if (sec >= 30 && (!dur || sec < dur - 60)) {
+          var keep = {};
+          ['id', 'kind', 'url', 'title', 'thumb', 'duration', 'views', 'created', 'category', 'channel', 'mature'].forEach(function (f) { keep[f] = item[f]; });
+          list.unshift({ key: k, sec: Math.floor(sec), dur: dur || item.duration || 0, at: Date.now(), item: keep });
+        }
+        K.store.set(KEY, list.slice(0, MAX));
+      },
+      list: function () { return all(); }
+    };
+  })();
 
   // "Samsung UE55RU7379 · Tizen 5.0" for App information, like the official "Device information".
   K.deviceName = function () {
@@ -200,15 +228,6 @@
     var img = K.el('img');
     img.src = q.createDataURL(Math.max(2, Math.floor(px / (q.getModuleCount() + 8))), 4);
     return img;
-  };
-
-  var toastTimer = null;
-  K.toast = function (text, ms) {
-    var t = K.$('toast');
-    t.textContent = text;
-    t.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.hidden = true; }, ms || 3000);
   };
 
   K.tizen = window.tizen || null;

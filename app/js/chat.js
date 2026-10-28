@@ -1,5 +1,6 @@
 /* Read-only live chat over Kick's Pusher websocket (like the official TV app, sending happens on
-   the phone). Messages are rendered in batches so busy chats don't stall the TV. */
+   the phone). Messages are rendered in batches so busy chats don't stall the TV. With the chat
+   hidden it still listens (quiet), for the stream ending and for raids. */
 (function (K) {
   'use strict';
 
@@ -48,6 +49,13 @@
     var d = K.el('div', 'msg'), s = m.sender || {}, id = s.identity || {};
     d.setAttribute('data-id', m.id || '');
     (id.badges || []).forEach(function (b) { var e = badge(b); if (e) { d.appendChild(e); } });
+    // Newer global badges (level): shown only when the chatter switched them on, as on kick.com.
+    (id.badges_v2 || []).forEach(function (b) {
+      if (!b.selected || !b.image_url || BADGES[b.name]) { return; }
+      var img = K.el('img', 'badge');
+      img.src = K.helper.url(b.image_url);
+      d.appendChild(img);
+    });
     var u = K.el('span', 'u', s.username || '');
     u.style.color = /^#[0-9a-f]{3,8}$/i.test(id.color || '') ? id.color : '#53fc18';
     d.appendChild(u);
@@ -85,7 +93,7 @@
     var d = data;
     if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return; } }
     switch (evt) {
-      case 'App\\Events\\ChatMessageEvent': queue.push(line(d)); break;
+      case 'App\\Events\\ChatMessageEvent': if (!info.quiet) { queue.push(line(d)); } break;
       case 'App\\Events\\MessageDeletedEvent':
         var gone = d.message && listEl().querySelector('[data-id="' + String(d.message.id).replace(/"/g, '') + '"]');
         if (gone) { gone.parentNode.removeChild(gone); }
@@ -98,6 +106,10 @@
         note(K.t('{name} gifted {n} subs', { name: d.gifter_username || K.t('Someone'), n: (d.gifted_usernames || []).length || 1 })); break;
       case 'App\\Events\\StreamHostEvent': note(K.t('{name} hosted with {n} viewers', { name: d.host_username || K.t('Someone'), n: d.number_viewers || 0 })); break;
       case 'App\\Events\\StopStreamBroadcast': if (K.player.ended) { K.player.ended(); } break;
+      // A raid: kick.com moves viewers to the hosted channel after a countdown.
+      case 'App\\Events\\ChatMoveToSupportedChannelEvent':
+        if (d.hosted && d.hosted.slug && d.hosted.slug !== info.slug && K.player.raid) { K.player.raid(d.hosted); }
+        break;
     }
   }
 
@@ -128,7 +140,7 @@
   }
 
   K.chat = {
-    // opts: { channelId, roomId, slug, subBadges }
+    // opts: { channelId, roomId, slug, subBadges, quiet }
     start: function (opts) {
       K.chat.stop();
       var myGen = gen;
@@ -137,7 +149,7 @@
       pinned(null);
       note(K.t('Welcome to the chat room!'), 'sys');
       K.api.messages(opts.channelId, function (err, d) {
-        if (myGen !== gen || err || !d || !d.data) { return; }
+        if (myGen !== gen || err || !d || !d.data || opts.quiet) { return; }
         var msgs = (d.data.messages || []).slice().sort(function (a, b) { return K.parseTime(a.created_at) - K.parseTime(b.created_at); });
         var lines = msgs.slice(-30).map(line);
         queue = lines.concat(queue);

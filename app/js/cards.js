@@ -86,6 +86,7 @@
     count.appendChild(icon('viewers'));
     count.appendChild(document.createTextNode(K.count(it.views)));
     c.appendChild(count);
+    if (it.progress > 0) { var bar = K.el('div', 'progress'), fill = K.el('i'); fill.style.width = Math.min(100, Math.round(it.progress * 100)) + '%'; bar.appendChild(fill); c.appendChild(bar); }
     lines.appendChild(K.el('div', 'vtitle', it.title || K.t(it.kind === 'clip' ? 'Clip' : 'Past broadcast')));
     if (it.category) { meta.appendChild(K.el('span', '', it.category)); }
     if (it.created) { meta.appendChild(K.el('span', '', K.ago(it.created))); }
@@ -93,6 +94,20 @@
     info.appendChild(lines);
     c.appendChild(info);
     c._data = it;
+    return c;
+  };
+
+  // A scheduled stream: day and time (in the TV's time zone), title and category.
+  cards.schedule = function (ev) {
+    var c = K.el('div', 'sched f' + (ev.live ? ' live' : '')), d = new Date(ev.start), now = new Date(), lang = K.prefs.language, day, time;
+    var dayDiff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+    try { day = d.toLocaleDateString(lang, { weekday: 'short', day: 'numeric', month: 'short' }); time = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { day = d.toDateString(); time = d.toTimeString().slice(0, 5); }
+    if (dayDiff === 0) { day = K.t('Today'); } else if (dayDiff === 1) { day = K.t('Tomorrow'); }
+    c.appendChild(K.el('div', 'when', ev.live ? K.t('LIVE') : day + ' · ' + time));
+    c.appendChild(K.el('div', 'stitle', ev.title || K.t('Scheduled stream')));
+    if (ev.category) { c.appendChild(K.el('div', 'scat', ev.category)); }
+    c._data = ev;
     return c;
   };
 
