@@ -13,7 +13,6 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 
 <a href="docs/demo/demo.mp4"><img src="docs/demo/demo.webp" alt="Demo: Home, Categories, channel page, player with chat and Settings" width="900"></a>
 
-<sub>Click the animation for the video with sound</sub>
 
 </div>
 
