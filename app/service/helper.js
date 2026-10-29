@@ -259,8 +259,12 @@ function open(target, method, headers, cb) {
     if (err) { return cb(err); }
     headers.Host = u.host;
     headers['User-Agent'] = headers['User-Agent'] || UA;
-    cb(null, (u.protocol === 'http:' ? http : https).request({ host: addr, port: u.port, path: u.path, method: method, headers: headers,
-      servername: u.hostname, agent: agentFor(u.protocol, u.hostname) }));
+    var req = (u.protocol === 'http:' ? http : https).request({ host: addr, port: u.port, path: u.path, method: method, headers: headers,
+      servername: u.hostname, agent: agentFor(u.protocol, u.hostname) });
+    // The request connects as soon as it exists: one dropped before its caller listens for errors
+    // (the app gave up meanwhile) must not take the whole helper down when Kick resets it.
+    req.on('error', function () {});
+    cb(null, req);
   });
 }
 
@@ -484,7 +488,7 @@ function proxy(req, res, target) {
     if (data.length) { headers['Content-Length'] = data.length; }
     open(target, req.method, headers, function (err, request) {
       if (err) { return fail(502, String(err.message || err)); }
-      if (gone) { return; }
+      if (gone) { return request.abort(); }
       up = request;
       up.on('response', function (r) {
         if (finished) { return r.resume(); }
@@ -515,6 +519,10 @@ function proxy(req, res, target) {
     });
   }
 }
+
+// Last line of defence: an unexpected error in one request is logged, not fatal. Without the
+// helper every image, list and video request of the app fails until the app restarts.
+process.on('uncaughtException', function (e) { note('', 'error ' + String((e && e.stack) || e).split('\n').slice(0, 2).join(' ')); });
 
 module.exports.onStart = function () {
   var server = function (req, res) {

@@ -16,6 +16,10 @@
   --key: #262626;
   --text: #fff;
   --muted: #b4b4b4;
+  /* one look for every screen: corners, buttons, the focus ring on tiles */
+  --radius: 16px;
+  --btn-h: 56px;
+  --ring: 5px solid var(--green);
 }
 
 * { box-sizing: border-box; }
@@ -25,6 +29,8 @@ html, body { margin: 0; width: 1920px; height: 1080px; background: var(--bg); co
 html.playing, html.playing body { background: transparent; }
 html.playing #screens, html.playing #nav { display: none; }
 img { display: block; }
+/* a picture not asked for yet would draw the browser's empty-image frame */
+img:not([src]) { visibility: hidden; }
 [hidden] { display: none !important; }
 
 /* Single-colour official icons used as masks so they take the text colour. */
@@ -46,24 +52,35 @@ img { display: block; }
 
 /* ---- top navigation (KickTopNavigationBar: 56dp row, pill 16dp from the top) ---- */
 #nav { position: fixed; z-index: 20; left: 0; top: 0; width: 1920px; height: 150px;
-  background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 100%); }
-.nav-pill { position: absolute; left: 50%; top: 32px; height: 52px; transform: translateX(-50%); display: flex; align-items: center;
-  padding: 0 6px; border-radius: 26px; background: rgba(34,40,41,.82); white-space: nowrap; }
-.nav-tab { height: 42px; line-height: 42px; padding: 0 26px; margin: 0 2px; border-radius: 21px; font-size: 25px; font-weight: 600; color: var(--text); }
+  background: linear-gradient(180deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,0) 100%); transition: transform .3s ease-out, opacity .3s; }
+#nav.away { transform: translateY(-150px); opacity: 0; }
+.nav-logo { position: absolute; left: 48px; top: 44px; height: 28px; }
+/* the Kick phone app's "liquid glass" bar: see-through and flat, no colour of its own
+   (Chromium 63 has no backdrop blur, so the glass is a clear dark tint) */
+.nav-pill { position: absolute; left: 50%; top: 26px; height: 64px; transform: translateX(-50%); display: flex; align-items: center;
+  padding: 0 7px; border-radius: 32px; white-space: nowrap; background: rgba(22,22,24,.55); border: 1px solid rgba(255,255,255,.06); }
+.nav-tab { position: relative; height: 50px; line-height: 50px; padding: 0 28px; margin: 0 1px; border-radius: 25px; font-size: 25px; font-weight: 600; color: var(--text);
+  transition: background-color .15s ease-out; }
 .nav-tab.active { color: var(--green); }
-.nav-tab.focused { background: var(--text); color: #000; }
+.nav-tab.focused { background: rgba(255,255,255,.14); }
+.nav-tab.active.focused { color: var(--green); }
+
 .nav-search { padding: 0 12px; }
 .nav-search .icon { width: 32px; height: 32px; vertical-align: -7px; }
 .nav-right { position: absolute; right: 48px; top: 32px; height: 52px; display: flex; align-items: center; }
+.nav-logo { top: 44px; }
+.nav-clock { font-size: 25px; font-weight: 600; color: var(--muted); margin-right: 26px; }
 .nav-icon { width: 52px; height: 52px; border-radius: 26px; margin-right: 14px; text-align: center; padding-top: 11px; color: var(--text); }
 .nav-icon .icon { width: 30px; height: 30px; }
 .nav-icon.focused { background: var(--text); color: #000; }
-#navUser { height: 52px; border-radius: 26px; display: flex; align-items: center; color: var(--text); }
+#navUser { position: relative; height: 52px; border-radius: 26px; display: flex; align-items: center; color: var(--text); }
+#navUser.update:after { content: ''; position: absolute; right: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px #000; }
 #navUser img { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; margin: 3px; }
 #navUser.focused img { box-shadow: 0 0 0 4px var(--text); }
-#navUser .connect { display: flex; align-items: center; padding: 0 20px 0 16px; font-size: 25px; font-weight: 600; }
+#navUser .connect { display: flex; align-items: center; height: 52px; padding: 0 22px 0 18px; font-size: 25px; font-weight: 600; border-radius: 26px;
+  background: rgba(22,22,24,.55); border: 1px solid rgba(255,255,255,.06); }
 #navUser .connect .icon { width: 28px; height: 28px; margin-right: 12px; }
-#navUser.focused .connect { background: var(--text); color: #000; border-radius: 26px; height: 52px; }
+#navUser.focused .connect { background: rgba(255,255,255,.14); }
 
 /* ---- screens and scrolling ---- */
 /* Clip to the screen: anything wider makes the TV zoom the whole page out to fit it. */
@@ -71,7 +88,7 @@ img { display: block; }
 .screen { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; }
 .scroller { position: relative; padding: 104px 0 120px 48px; transition: transform .25s ease-out; will-change: transform; }
 .sec { margin-bottom: 44px; }
-.sec h2 { font-size: 32px; font-weight: 600; margin: 0 0 22px; }
+.sec h2 { font-size: 32px; font-weight: 700; margin: 0 0 22px; }
 .sec h2 em { font-style: normal; color: var(--cyan); }
 .rowview { position: relative; }
 .track { display: flex; align-items: flex-start; transition: transform .25s ease-out; will-change: transform; }
@@ -83,7 +100,7 @@ img { display: block; }
 .empty b { display: block; color: var(--text); font-size: 34px; margin-bottom: 10px; }
 
 /* ---- stream card (KickThumbnailStream: 8dp corners, info on the picture) ---- */
-.card { position: relative; width: 578px; height: 325px; border-radius: 16px; overflow: hidden; background: var(--surface); }
+.card { position: relative; width: 578px; height: 325px; border-radius: var(--radius); overflow: hidden; background: var(--surface); transition: transform .15s ease-out; }
 .card > img.thumb { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
 .card .shade { position: absolute; left: 0; right: 0; bottom: 0; height: 230px;
   background: linear-gradient(0deg, rgba(0,0,0,.88) 0%, rgba(0,0,0,.55) 45%, rgba(0,0,0,0) 100%); }
@@ -99,8 +116,41 @@ img { display: block; }
 .card .title { font-size: 22px; font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card .meta { font-size: 17px; color: #d0d0d0; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card .meta span { margin-right: 14px; }
-.card.focused:after, .cat.focused:after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; border: 5px solid var(--green); border-radius: 16px; }
-.card.skeleton { background: var(--surface); }
+.card.focused:after, .cat.focused:after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; border: var(--ring); border-radius: var(--radius); }
+.card.focused, .cat.focused, .sched.focused { transform: scale(1.03); }
+
+/* ---- loading placeholders: the shape of what's coming, with a light sweeping across ---- */
+.skeleton { position: relative; overflow: hidden; background: var(--surface); }
+.skeleton:before { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  background: linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(255,255,255,.08) 50%, rgba(255,255,255,0) 80%);
+  transform: translateX(-100%); animation: shimmer 1.3s ease-in-out .4s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+/* the same shimmer over a picture's place until it loads, and over header placeholders */
+.shine { position: absolute; left: -1px; top: -1px; right: -1px; bottom: -1px; overflow: hidden; background: var(--surface); border-radius: inherit; }
+.shine:before { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  background: linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(255,255,255,.08) 50%, rgba(255,255,255,0) 80%);
+  transform: translateX(-100%); animation: shimmer 1.3s ease-in-out .4s infinite; }
+/* only while the picture is being fetched (it gets its src when it nears the screen): cards far off stay still */
+.shine:before { animation-play-state: paused; }
+img[src] + .shine:before, .shine.run:before { animation-play-state: running; }
+.chan .ring .shine, .card .info .shine { border-radius: 50%; }
+.card .info .av { position: relative; flex: 0 0 auto; width: 84px; height: 84px; border-radius: 50%; }
+.ph-h { width: 380px; height: 32px; margin-bottom: 22px; }
+.ph { position: relative; overflow: hidden; border-radius: 10px; }
+.ph > .shine, .ch-banner > .shine { background: #262626; }
+.ch-head .avatar.ph { width: 180px; height: 180px; border-radius: 50%; border: 6px solid #000; }
+.ph-name { width: 360px; height: 52px; }
+.ph-sub { width: 260px; height: 26px; margin-top: 12px; }
+.ph-line { width: 640px; height: 24px; margin-top: 12px; }
+.ph-btn { display: inline-block; width: 170px; height: var(--btn-h); border-radius: 28px; margin-right: 18px; vertical-align: top; }
+.chan.skeleton { background: none; overflow: visible; }
+.chan.skeleton:before { display: none; }
+.chan.skeleton .ring, .chan.skeleton .bar { position: relative; overflow: hidden; background: var(--surface); }
+.chan.skeleton .ring { border-radius: 50%; }
+.chan.skeleton .bar { width: 130px; height: 26px; border-radius: 8px; margin: 26px auto 0; }
+.chan.skeleton .ring:before, .chan.skeleton .bar:before { content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  background: linear-gradient(100deg, rgba(255,255,255,0) 20%, rgba(255,255,255,.08) 50%, rgba(255,255,255,0) 80%);
+  transform: translateX(-100%); animation: shimmer 1.3s ease-in-out .4s infinite; }
 /* clip / past broadcast card */
 .card .dur { position: absolute; left: 12px; top: 12px; height: 28px; line-height: 28px; padding: 0 9px; border-radius: 4px;
   background: rgba(11,14,15,.85); font-size: 19px; font-weight: 700; }
@@ -112,23 +162,21 @@ img { display: block; }
 
 /* ---- pill rows above grids: sort order, Categories / Clips, clip range ---- */
 .pills { margin-bottom: 30px; }
-.pills .btn { height: 52px; line-height: 52px; padding: 0 28px; margin-right: 14px; }
+.pills .btn { padding: 0 28px; margin-right: 14px; }
 
 /* ---- channel page: scheduled streams and About ---- */
-.sched { width: 430px; height: 170px; border-radius: 16px; background: var(--surface); padding: 22px 26px; box-sizing: border-box; }
+.sched { position: relative; width: 430px; height: 170px; border-radius: var(--radius); background: var(--surface); padding: 22px 26px; box-sizing: border-box; transition: transform .15s ease-out; }
 .sched .when { color: var(--green); font-size: 24px; font-weight: 800; }
 .sched .stitle { font-size: 28px; font-weight: 700; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sched .scat { color: var(--muted); font-size: 22px; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sched.focused { background: var(--text); color: #000; }
-.sched.focused .when { color: #0b7a00; }
-.sched.focused .scat { color: #444; }
-.about { width: 1300px; border-radius: 16px; background: var(--surface); padding: 28px 34px; box-sizing: border-box; font-size: 26px; line-height: 1.45; }
+.sched.focused { box-shadow: inset 0 0 0 5px var(--green); }
+.about { width: 1300px; border-radius: var(--radius); background: var(--surface); padding: 28px 34px; box-sizing: border-box; font-size: 26px; line-height: 1.45; }
 .about p { margin: 0 0 14px; white-space: pre-line; }
 .about .link b { display: inline-block; width: 160px; color: var(--muted); font-weight: 700; }
-.about.focused { box-shadow: 0 0 0 5px var(--text); }
+.about.focused { box-shadow: inset 0 0 0 5px var(--green); }
 
 /* ---- category card (KickThumbnailCategory: box art only) ---- */
-.cat { position: relative; width: 226px; height: 300px; border-radius: 16px; overflow: hidden; background: var(--surface); }
+.cat { position: relative; width: 226px; height: 300px; border-radius: var(--radius); overflow: hidden; background: var(--surface); transition: transform .15s ease-out; }
 .cat.big { width: 285px; height: 378px; }
 .cat img { width: 100%; height: 100%; object-fit: cover; }
 .cat .noart { position: absolute; left: 16px; right: 16px; bottom: 18px; font-size: 26px; font-weight: 700; }
@@ -143,12 +191,12 @@ img { display: block; }
 .chan .name span { overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
 .chan .name img { width: 26px; height: 26px; margin-left: 6px; flex: 0 0 auto; }
 .chan .sub { font-size: 20px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chan.focused .ring .avatar { box-shadow: 0 0 0 5px var(--text); }
+.chan.focused .ring .avatar { box-shadow: 0 0 0 5px var(--green); }
 .chan.small { width: 180px; }
 .chan.small .ring, .chan.small .ring .avatar { width: 156px; height: 156px; }
 
 /* ---- buttons, tabs, settings ---- */
-.btn { display: inline-block; height: 60px; line-height: 60px; padding: 0 34px; border-radius: 30px; background: var(--surface-2); color: var(--text);
+.btn { display: inline-block; height: var(--btn-h); line-height: var(--btn-h); padding: 0 34px; border-radius: 28px; background: var(--surface-2); color: var(--text);
   font-size: 24px; font-weight: 700; margin-right: 18px; white-space: nowrap; }
 .btn.primary { background: var(--green); color: var(--ink); }
 .btn.focused { background: var(--text); color: #000; }
@@ -164,10 +212,18 @@ img { display: block; }
 
 /* ---- home: featured carousel (FeaturedCarouselRow / ImmersiveStreamerHeader) ---- */
 .hero { position: relative; width: 1920px; height: 880px; margin: -104px 0 0 -48px; }
-.hero-img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover;
-  opacity: 0; transition: opacity .45s, transform .3s ease-out; }
-.hero-img.on { opacity: 1; }
-.hero.focused .hero-img { transform: scale(1.02); }
+.hero-img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; opacity: 0; transition: opacity .9s ease-in-out; }
+.hero-img.on { opacity: 1; animation: kenburns 9s ease-out both; }
+@keyframes kenburns { from { transform: scale(1.0); } to { transform: scale(1.06); } }
+/* loading: a still surface with a light sliding over it (moved, not repainted: cheap on the TV) */
+.hero.loading { overflow: hidden; }
+.hero.loading:before { content: ''; position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: var(--surface); }
+.hero.loading:after { content: ''; position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  background: linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.05) 50%, rgba(255,255,255,0) 70%);
+  transform: translateX(-100%); animation: shimmer 1.6s ease-in-out .4s infinite; }
+.hero-info.swap .hero-badges, .hero-info.swap .hero-head { animation: rise .6s ease-out both; }
+.hero-info.swap .hero-head { animation-delay: .08s; }
+@keyframes rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .hero-grad { position: absolute; left: 0; top: 400px; width: 1920px; height: 680px;
   background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.4) 20%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.95) 100%); }
 .hero-badges { position: absolute; left: 48px; top: 144px; display: flex; align-items: center; }
@@ -196,13 +252,33 @@ img { display: block; }
 .kbd { position: absolute; left: 46px; top: 110px; width: 420px; }
 .query { height: 65px; line-height: 65px; background: var(--surface-2); padding: 0 34px; font-size: 34px; margin-bottom: 30px; white-space: nowrap; overflow: hidden; }
 .query.placeholder { color: #777; }
-.keys { display: flex; flex-wrap: wrap; width: 420px; }
-.key { width: 69px; height: 61px; line-height: 61px; margin: 0 1px 1px 0; text-align: center; background: var(--key); font-size: 34px; color: var(--text); }
-.key.w2 { width: 139px; }
-.key.w3 { width: 209px; font-size: 30px; }
+/* a 6-column grid: wide keys span columns, so no rounding can push a key onto an extra line */
+.keys { display: grid; grid-template-columns: repeat(6, 1fr); grid-gap: 1px; width: 420px; }
+.key { height: 61px; line-height: 61px; text-align: center; background: var(--key); font-size: 34px; color: var(--text); }
+.key.w2 { grid-column: span 2; }
+.key.w3 { grid-column: span 3; font-size: 30px; }
 .key .icon { width: 34px; height: 34px; vertical-align: -6px; }
 .key.focused { background: #f0f0f0; color: #000; border-radius: 6px; }
 .search-results { padding-left: 514px; }
+/* live channels before typing: one per line, like the Kick phone app */
+.slist { width: 1300px; }
+.srow { display: flex; align-items: center; height: 104px; padding: 0 24px 0 14px; border-radius: var(--radius); margin-bottom: 6px; }
+.srow.skeleton { background: none; overflow: visible; }
+.srow.skeleton:before { display: none; }
+.srow.skeleton .ring { border-color: var(--surface); }
+.srow .ph-l1 { width: 280px; height: 28px; }
+.srow .ph-l2 { width: 180px; height: 22px; margin-top: 10px; }
+.srow .ring { position: relative; flex: 0 0 auto; width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--green); padding: 3px; }
+.srow .ring .avatar { width: 66px; height: 66px; }
+.srow .ring .shine { border-radius: 50%; }
+.srow .lines { flex: 1 1 auto; min-width: 0; margin-left: 22px; }
+.srow .name { font-size: 30px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow .sub { font-size: 24px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow .viewers { font-size: 28px; font-weight: 600; margin-left: 20px; }
+.srow .viewers:before { content: ''; display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--green); margin-right: 10px; vertical-align: 2px; }
+.srow.focused { background: var(--text); color: #000; }
+.srow.focused .sub { color: #444; }
+.srow.focused .ring { border-color: #0b7a00; }
 
 /* ---- sign in ---- */
 .login { display: flex; padding: 40px 0 0 98px; }
@@ -227,9 +303,9 @@ img { display: block; }
 .spinner { width: 72px; height: 72px; margin: 0 auto; border-radius: 50%; border: 7px solid #262626; border-top-color: var(--green); animation: spin .9s linear infinite; }
 .player-status.error .spinner, .player-status.ended .spinner { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.overlay { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 2; }
-.ov-head { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; padding: 22px 60px 40px 37px;
-  background: radial-gradient(ellipse at 0 0, rgba(0,0,0,.82) 0%, rgba(0,0,0,.55) 45%, rgba(0,0,0,0) 75%); text-shadow: 0 2px 6px rgba(0,0,0,.8); }
+.overlay { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 2;
+  background: linear-gradient(180deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.45) 22%, rgba(0,0,0,.3) 50%, rgba(0,0,0,.5) 78%, rgba(0,0,0,.85) 100%); }
+.ov-head { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; padding: 22px 60px 40px 37px; text-shadow: 0 2px 6px rgba(0,0,0,.8); }
 .ov-avatar-wrap { position: relative; width: 140px; height: 150px; flex: 0 0 auto; }
 .ov-avatar-wrap .avatar { width: 140px; height: 140px; border: 4px solid var(--green); }
 .ov-live { position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%); background: var(--green); color: #fff; font-size: 22px; font-weight: 800;
@@ -244,7 +320,7 @@ img { display: block; }
 .ov-title { font-size: 26px; color: #d6d6d6; margin-top: 8px; max-width: 1100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-cat { font-size: 26px; font-weight: 700; margin-top: 8px; }
 .ov-cat span:first-child { color: var(--green); margin-right: 18px; }
-.ov-bottom { position: absolute; left: 0; bottom: 0; width: 1920px; height: 260px; background: linear-gradient(0deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 100%); }
+.ov-bottom { position: absolute; left: 0; bottom: 0; width: 1920px; height: 260px; }
 /* timeline: live = full green bar; rewound/video = position, knob when focused or seeking */
 .ov-time { position: absolute; left: 70px; bottom: 76px; font-size: 28px; font-weight: 700; }
 #player.mode-live .ov-time:before { content: ''; display: inline-block; width: 20px; height: 20px; border-radius: 50%; background: var(--green);
@@ -261,14 +337,13 @@ img { display: block; }
 #player.mode-vod .ov-live, #player.mode-vod .ov-viewers:before { display: none; }
 #player.mode-vod .ov-viewers { margin-left: 18px; }
 .ov-buttons { position: absolute; right: 70px; bottom: 68px; display: flex; align-items: flex-end; }
-.tb { position: relative; width: 56px; height: 56px; margin-left: 18px; border-radius: 50%; text-align: center; padding-top: 13px; color: var(--text); }
+.tb { position: relative; display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin-left: 18px; border-radius: 50%; color: var(--text); }
 .tb .icon { width: 30px; height: 30px; }
-.tb img.avatar { width: 46px; height: 46px; margin: -8px auto 0; }
+.tb img.avatar { width: 46px; height: 46px; }
 .tb .label { position: absolute; left: 0; bottom: 64px; font-size: 26px; font-weight: 700; white-space: nowrap; visibility: hidden; }  /* left: set by placeLabels() */
 .tb.focused { background: var(--text); color: #000; }
 .tb.focused .label { visibility: visible; color: var(--text); }
-.tb img.golive { height: 28px; margin: 1px auto 0; }
-.tb:first-child img.golive { margin-left: -2px; }
+.tb img.golive { height: 20px; }
 
 /* ---- chat (no header, like the TV app) ---- */
 .chat { position: absolute; z-index: 1; right: 0; top: 0; width: 535px; height: 1080px; display: flex; flex-direction: column;
@@ -289,11 +364,45 @@ img { display: block; }
 /* ---- dialogs ---- */
 .modal { position: fixed; z-index: 40; left: 0; top: 0; width: 1920px; height: 1080px; background: rgba(0,0,0,.8); }
 .dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-width: 720px; max-width: 1200px; padding: 52px 56px;
-  background: var(--surface); border-radius: 24px; }
+  background: #141517; border: 1px solid rgba(255,255,255,.07); border-radius: 24px; box-shadow: 0 30px 80px rgba(0,0,0,.6); animation: dialog-in .2s ease-out both; }
+@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -47%) scale(.97); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.dialog-logo { display: block; height: 40px; margin: 0 auto 30px; }
+.dialog.exit { min-width: 640px; text-align: center; padding: 56px 64px 50px; }
+.dialog.exit p { margin-bottom: 38px; }
+.dialog.exit .dialog-buttons { display: flex; justify-content: center; }
+.dialog.exit .btn { min-width: 200px; margin: 0 9px; }
+/* QR dialogs, laid out like the official QR screen: the code (white on the dark page), then the
+   title, text and address, centred */
+.dialog.qr { min-width: 760px; max-width: 900px; text-align: center; padding: 56px 72px 48px; }
+.qr-code { display: block; width: 360px; height: 360px; margin: 0 auto 34px; image-rendering: pixelated; }
+.dialog.qr h2 { font-size: 36px; margin-bottom: 12px; }
+.dialog.qr p { margin-bottom: 6px; }
+.qr-url { font-size: 30px; font-weight: 700; margin-bottom: 34px; }
+.dialog.qr p + .dialog-buttons { margin-top: 28px; }
+.dialog.qr .dialog-buttons { display: flex; justify-content: center; }
+.dialog.qr .btn { min-width: 200px; margin: 0 9px; }
+/* changelog with the QR code beside it */
+.dialog.wide { width: 1400px; max-width: 1400px; }
+.changelog-wrap { position: relative; float: left; width: 900px; }
+.changelog { max-height: 520px; overflow: hidden; padding-right: 30px; }
+.scrollbar { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; border-radius: 3px; background: rgba(255,255,255,.12); }
+.scrollbar i { position: absolute; left: 0; width: 6px; border-radius: 3px; background: var(--muted); transition: top .15s ease-out; }
+.changelog.focused + .scrollbar i { background: var(--green); }
+/* up to date: no QR code, the notes take the whole dialog */
+.dialog.notes { width: 1100px; max-width: 1100px; }
+.dialog.notes .changelog-wrap { float: none; width: auto; }
+.dialog.notes .dialog-buttons { padding-top: 34px; }
+.dialog.wide .qr-code { float: right; width: 300px; height: 300px; margin: 0; }
+.dialog.wide .dialog-buttons { clear: both; padding-top: 34px; }
+.changelog h3 { font-size: 26px; font-weight: 800; color: var(--green); margin: 0 0 10px; }
+.changelog h3 ~ h3 { margin-top: 22px; }
+.changelog .item { font-size: 24px; line-height: 1.45; padding-left: 26px; position: relative; }
+.changelog .item:before { content: ''; position: absolute; left: 4px; top: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .dialog h2 { font-size: 40px; font-weight: 800; margin: 0 0 16px; }
 .dialog p { font-size: 26px; color: var(--muted); margin: 0 0 32px; line-height: 1.4; white-space: pre-line; }
-.dialog .qr-image { display: block; width: 400px; height: 400px; margin: 0 auto 32px; padding: 20px; background: #000; border-radius: 20px; image-rendering: pixelated; }
-.dialog .qr-box { margin: 0 auto 32px; }
+.opts-wrap { position: relative; }
+.opts { position: relative; max-height: 720px; overflow: hidden; padding-right: 26px; }
+.opts + .scrollbar i { background: var(--green); }
 .opt { height: 64px; line-height: 64px; padding: 0 26px; border-radius: 14px; font-size: 26px; font-weight: 600; margin-bottom: 8px; }
 .opt.sel { color: var(--green); }
 .opt.sel:after { content: ''; float: right; width: 28px; height: 64px; background: url(../img/ic_check.svg) center/28px no-repeat; }
@@ -321,15 +430,15 @@ img { display: block; }
 
 /* ---- Account (like the Kick app's Account screen) ---- */
 .acct { width: 1100px; margin-left: 362px; }
-.acct-sec { font-size: 38px; font-weight: 800; margin: 30px 0 10px; }
+.acct-sec { font-size: 32px; font-weight: 700; margin: 34px 0 12px; }
 .acct-sec:first-child { margin-top: 8px; }
 .acct-note { font-size: 24px; color: var(--muted); margin: -2px 0 12px; }
-.acct-fade { position: absolute; left: 0; top: 0; width: 1920px; height: 150px; background: linear-gradient(#000 60%, rgba(0, 0, 0, 0)); pointer-events: none; }
 .acct-row { display: flex; align-items: center; height: 88px; padding: 0 22px; border-radius: 16px; font-size: 32px; }
 .acct-row .icon { width: 36px; height: 36px; flex: 0 0 auto; }
 .acct-row .icon:last-child { width: 44px; height: 44px; margin-right: -8px; }  /* the official chevron has wide padding */
 .acct-row .label { margin-left: 26px; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .acct-row .value { color: var(--muted); font-size: 26px; margin: 0 18px; white-space: nowrap; }
+.acct-row.has-update .value { color: var(--green); font-weight: 700; }
 .acct-row.focused { background: var(--text); color: #000; }
 .acct-row.focused .value { color: #444; }
 .acct-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; margin-left: -8px; flex: 0 0 auto; }
@@ -338,14 +447,14 @@ img { display: block; }
   background: #33363b; font-size: 34px; font-weight: 800; }
 .acct-logout .icon { width: 36px; height: 36px; margin-right: 18px; }
 .acct-logout.focused { background: var(--text); color: #000; }
-/* KickSwitch (official colors): on = green thumb on a dark track; off = grey ring and thumb. */
-.switch { position: relative; flex: 0 0 auto; width: 84px; height: 50px; border-radius: 25px; background: #424242; border: 3px solid #a8b1b8; box-sizing: border-box; }
-.switch .knob { position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; border-radius: 50%; background: #a8b1b8; transition: left .15s, width .15s, height .15s, top .15s; }
-.switch.on { background: #313538; border-color: #313538; }
-.switch.on .knob { left: 36px; top: 4px; width: 36px; height: 36px; background: var(--green); }
+/* KickSwitch as in the official app: off = dark grey track, white knob left; on = green track,
+   dark knob right. No outline; the knob keeps its size. */
+.switch { position: relative; flex: 0 0 auto; width: 84px; height: 46px; border-radius: 23px; background: #3a3d42; transition: background-color .15s; }
+.switch .knob { position: absolute; left: 5px; top: 5px; width: 36px; height: 36px; border-radius: 50%; background: #fff; transition: left .15s, background-color .15s; }
+.switch.on { background: var(--green); }
+.switch.on .knob { left: 43px; background: #0b0e0f; }
 
 /* Paused: the official play icon in a round badge in the middle of the picture. */
 .pause-badge { position: absolute; left: 50%; top: 50%; z-index: 2; display: flex; align-items: center; justify-content: center;
   width: 168px; height: 168px; margin: -84px 0 0 -84px; border-radius: 50%; background: rgba(0, 0, 0, .6); }
 .pause-badge .icon { width: 88px; height: 88px; margin-left: 6px; color: #fff; -webkit-mask-image: url(../img/ic_play.svg); }
-#player.chat-on .pause-badge { left: calc((1920px - 560px) / 2); }

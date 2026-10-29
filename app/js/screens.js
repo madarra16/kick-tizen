@@ -34,15 +34,17 @@
 
   // Endless grid: loads page after page as focus nears the end. reset() starts it over (a new
   // sort order or clip range); answers for the old one are dropped.
-  function pagedGrid(s, grid, fetch, build, filter, emptyText) {
+  function pagedGrid(s, grid, fetch, build, filter, emptyText, skeleton) {
     var page = 0, more = true, loading = false, items = [], gen = 0;
     function next() {
       if (loading || !more) { return; }
       var my = gen;
       loading = true;
       page++;
+      if (!items.length) { grid.appendChild(K.cards.skeleton(skeleton === 'cat big' ? 12 : 6, skeleton)); }
       fetch(page, function (err, list, hasMore) {
         if (my !== gen) { return; }
+        K.cards.unskeleton(grid);
         loading = false;
         more = !err && hasMore;
         if (err && !items.length) { grid.appendChild(K.cards.empty(K.t('Could not load'), K.t('Kick did not answer.'))); return; }
@@ -87,27 +89,52 @@
 
   // ---- Home: featured carousel (FeaturedCarouselRow) + rows ----
   screens.home = function () {
-    var s = base('home', true), sc = s.scroller, featured = [], index = 0, timer = null;
-    var hero = K.el('div', 'hero f'), heroImg = K.el('img', 'hero-img'), badges = K.el('div', 'hero-badges'), head = K.el('div', 'hero-head'), dots = K.el('div', 'hero-dots');
-    hero.appendChild(heroImg);
+    var s = base('home', true), sc = s.scroller, featured = [], index = 0, timer = null, front = 0;
+    var hero = K.el('div', 'hero f loading'), imgs = [K.el('img', 'hero-img'), K.el('img', 'hero-img')], info = K.el('div', 'hero-info'),
+      badges = K.el('div', 'hero-badges'), head = K.el('div', 'hero-head'), dots = K.el('div', 'hero-dots');
+    hero.appendChild(imgs[0]);
+    hero.appendChild(imgs[1]);
     hero.appendChild(K.el('div', 'hero-grad'));
-    hero.appendChild(badges);
-    hero.appendChild(head);
+    info.appendChild(badges);
+    info.appendChild(head);
+    hero.appendChild(info);
     hero.appendChild(dots);
     sc.appendChild(hero);
 
-    function show(i) {
-      if (!featured.length) { return; }
-      index = (i + featured.length) % featured.length;
-      var st = featured[index];
+    function text(st) {
       badges.innerHTML = '<img class="live" src="img/ic_live_badge.svg"><span class="count">' + K.esc(K.count(st.viewers)) + '</span>';
       head.innerHTML = (st.avatar ? '<img class="avatar" src="' + K.esc(K.helper.url(st.avatar)) + '">' : '') + '<div class="lines"><div class="name">' + K.esc(st.name) +
         '</div><div class="cat-lang">' + K.esc([st.category, st.lang].filter(Boolean).join(' · ')) + '</div><div class="title">' + K.esc(st.title) + '</div></div>';
+      // Restart the text's fade-in.
+      info.classList.remove('swap');
+      void info.offsetWidth;
+      info.classList.add('swap');
+    }
+    // The next picture loads behind the current one, then the two crossfade (with a slow zoom)
+    // and the text changes with it; a picture that doesn't load still gets its text.
+    function show(i, now) {
+      if (!featured.length) { return; }
+      index = (i + featured.length) % featured.length;
+      var st = featured[index], back = imgs[1 - front], texted = false;
+      if (now) { texted = true; text(st); hero.classList.remove('loading'); }
       dots.innerHTML = featured.map(function (x, n) { return n === index ? '<i class="on"></i>' : '<i></i>'; }).join('');
-      // One request per picture: the <img> fades in once it has loaded.
-      heroImg.classList.remove('on');
-      heroImg.onload = function () { if (featured[index] === st) { heroImg.classList.add('on'); } };
-      heroImg.src = K.helper.url(st.thumbLarge || st.thumb) || '';
+      function showText() {
+        if (texted || featured[index] !== st) { return; }
+        texted = true;
+        text(st);
+        hero.classList.remove('loading');
+      }
+      back.classList.remove('on');
+      back.onload = function () {
+        if (featured[index] !== st) { return; }
+        showText();
+        back.classList.add('on');
+        imgs[front].classList.remove('on');
+        front = 1 - front;
+      };
+      back.onerror = showText;
+      back.src = K.helper.url(st.thumbLarge || st.thumb) || '';
+      setTimeout(showText, 2500);
     }
     function restartTimer() {
       clearInterval(timer);
@@ -122,6 +149,7 @@
     hero._select = function () { if (featured.length) { K.player.open(featured[index], featured, index); } };
 
     var cats = K.cards.row(K.t('*Categories* For You'), [], null), streams = K.cards.row(K.t('*Streams* For You'), [], null), resume = null;
+    cats._track.appendChild(K.cards.skeleton(9, 'cat'));
     streams._track.appendChild(K.cards.skeleton(4));
     sc.appendChild(cats);
     sc.appendChild(streams);
@@ -145,17 +173,27 @@
 
     K.api.featured(function (err, list) {
       featured = list.filter(K.allowStream);
-      if (featured.length) { show(0); restartTimer(); } else { head.innerHTML = '<div class="lines"><div class="name">' + K.esc(K.t('No featured streams right now')) + '</div></div>'; }
+      if (featured.length) { show(0, true); restartTimer(); } else { hero.classList.remove('loading'); head.innerHTML = '<div class="lines"><div class="name">' + K.esc(K.t('No featured streams right now')) + '</div></div>'; }
       s.ready();
     });
     withFallback(K.api.recommendedStreams, K.api.popular, function (err, list) { fillOrNote(streams, list.filter(K.allowStream), K.cards.streamBuilder(), err); s.ready(); });
+    // The four "Live in <category>" rows are in place (shimmering) from the start, so the page
+    // doesn't grow row by row; each gets its title and streams when they arrive.
+    var liveRows = [0, 1, 2, 3].map(function () {
+      var row = K.cards.row('', [], null), h = K.el('div', 'ph ph-h');
+      h.appendChild(K.el('i', 'shine run'));
+      row.insertBefore(h, row.firstChild);
+      row._track.appendChild(K.cards.skeleton(4));
+      sc.appendChild(row);
+      return row;
+    });
     withFallback(K.api.recommendedCategories, K.api.topCategories, function (err, list) {
       list = list.filter(K.allowCategory);
       fillOrNote(cats, list, function (c) { return K.cards.category(c); }, err);
-      list.slice(0, 4).forEach(function (cat) {
-        var row = K.cards.row(K.t('Live in *{name}*', { name: cat.name }), [], null);
-        row._track.appendChild(K.cards.skeleton(4));
-        sc.appendChild(row);
+      liveRows.forEach(function (row, i) {
+        var cat = list[i];
+        if (!cat) { sc.removeChild(row); return; }
+        row.replaceChild(K.cards.heading(K.t('Live in *{name}*', { name: cat.name })), row.firstChild);
         K.api.streams(cat.id, 1, function (err2, items) {
           items = items.filter(K.allowStream);
           if (!items.length) { sc.removeChild(row); return; }
@@ -179,7 +217,7 @@
       if (mode === 'categories') {
         var grid = K.el('div', 'grid cats');
         body.appendChild(grid);
-        pagedGrid(s, grid, K.api.categories, K.cards.bigCategory, K.allowCategory);
+        pagedGrid(s, grid, K.api.categories, K.cards.bigCategory, K.allowCategory, null, 'cat big');
         return;
       }
       var clips = K.el('div', 'grid'), cursor = null, g = null;
@@ -225,7 +263,8 @@
       sc.appendChild(buttonRow([[K.t('Sign in'), function () { K.app.push(screens.login()); }, true]]));
       return s;
     }
-    var loading = K.cards.empty('', K.t('Loading…'));
+    var loading = K.cards.row(K.t('Live channels'), [], null);
+    loading._track.appendChild(K.cards.skeleton(3));
     sc.appendChild(loading);
     K.api.followed(K.auth.token, function (err, rows) {
       sc.removeChild(loading);
@@ -266,6 +305,7 @@
       }
       // Followed categories, between live and offline channels as in the official app.
       var catRow = K.cards.row(K.t('Categories'), [], null);
+      catRow._track.appendChild(K.cards.skeleton(7, 'cat'));
       sc.appendChild(catRow);
       K.api.followedCategories(K.auth.token, function (e, cats) {
         cats = (cats || []).filter(K.allowCategory);
@@ -290,6 +330,7 @@
     var s = base('search', true), text = '', timer = null, req = null, gen = 0, layout = 'abc';
     var kbd = K.el('div', 'kbd'), query = K.el('div', 'query placeholder', K.t('Search')), keys = K.el('div', 'keys'), results = s.scroller;
     results.classList.add('search-results');
+    results.setAttribute('data-scroll', 'list');
     kbd.appendChild(query);
     kbd.appendChild(keys);
     s.el.appendChild(kbd);
@@ -328,13 +369,39 @@
     }
     function remembering(q, el) { var sel = el._select; el._select = function () { remember(q); sel(); }; return el; }
 
+    // Before typing: recent searches, then who's live right now (as in the Kick phone app).
     function recent() {
-      var rec = K.store.get('kick.recentSearch', []), sec = section(rec.length ? K.t('Recent Search') : '');
-      if (!rec.length) { sec.appendChild(K.cards.empty('', K.t('Type at least 2 characters to search channels, categories and livestreams.'))); }
-      rec.forEach(function (r) {
-        sec.appendChild(K.cards.button(r, function () { text = r; query.textContent = r; query.classList.remove('placeholder'); run(); }));
+      var rec = K.store.get('kick.recentSearch', []), my = gen;
+      if (rec.length) {
+        var sec = section(K.t('Recent Search'));
+        rec.forEach(function (r) {
+          sec.appendChild(K.cards.button(r, function () { text = r; query.textContent = r; query.classList.remove('placeholder'); run(); }));
+        });
+        results.appendChild(sec);
+      }
+      var live = section(K.t('Live channels')), list = K.el('div', 'slist');
+      for (var i = 0; i < 7; i++) {
+        var ph = K.el('div', 'srow skeleton'), ring = K.el('span', 'ring'), lines = K.el('div', 'lines');
+        ring.appendChild(K.el('i', 'shine run'));
+        ['ph-l1', 'ph-l2'].forEach(function (c) { var b = K.el('div', 'ph ' + c); b.appendChild(K.el('i', 'shine run')); lines.appendChild(b); });
+        ph.appendChild(ring);
+        ph.appendChild(lines);
+        list.appendChild(ph);
+      }
+      live.appendChild(list);
+      results.appendChild(live);
+      K.api.streams(null, 1, function (err, items) {
+        if (my !== gen) { return; }
+        items = (items || []).filter(K.allowStream).slice(0, 20);
+        list.textContent = '';
+        if (!items.length) { list.appendChild(K.cards.empty('', K.t('Type at least 2 characters to search channels, categories and livestreams.'))); return; }
+        items.forEach(function (st, n) {
+          var row = K.cards.liveItem(st);
+          row._select = function () { K.player.open(st, items, n); };
+          list.appendChild(row);
+        });
+        s.ready();
       });
-      results.appendChild(sec);
     }
 
     function run() {
@@ -344,7 +411,9 @@
       results.style.transform = '';
       if (req) { req.abort(); req = null; }
       if (q.length < 2) { recent(); return; }
-      results.appendChild(K.cards.empty('', K.t('Searching…')));
+      var wait = K.cards.row(K.t('Channels'), [], null);
+      wait._track.appendChild(K.cards.skeleton(6, 'chan'));
+      results.appendChild(wait);
       req = K.api.search(q, function (err, r) {
         if (my !== gen) { return; }
         results.textContent = '';
@@ -395,7 +464,8 @@
       var bannerUrl = img.url || img.src;
       me.name = u.username || me.name;
       me.avatar = u.profile_pic || me.avatar;
-      banner.innerHTML = bannerUrl ? '<img src="' + K.esc(K.helper.url(bannerUrl)) + '">' : '';
+      banner.textContent = '';
+      if (bannerUrl) { var bi = K.el('img'); banner.appendChild(bi); K.cards.shine(banner, bi); bi.src = K.helper.url(bannerUrl); }
       banner.appendChild(K.el('div', 'ch-shade'));
       head.textContent = '';
       var av = K.el('img', 'avatar' + (ls ? ' live' : ''));
@@ -472,7 +542,20 @@
     function twice(call, done) {
       call(function (err) { if (!err) { return done.apply(null, arguments); } setTimeout(function () { call(done); }, 1500); });
     }
-    header(null);
+    // While the channel loads: the header's shape, shimmering.
+    function loadingHeader() {
+      banner.textContent = '';
+      banner.appendChild(K.el('i', 'shine run'));
+      head.textContent = '';
+      var av = K.el('div', 'avatar ph'), text = K.el('div', 'ch-text'), buttons = K.el('div', 'ch-buttons');
+      av.appendChild(K.el('i', 'shine run'));
+      head.appendChild(av);
+      ['ph-name', 'ph-sub', 'ph-line'].forEach(function (cls) { var e = K.el('div', 'ph ' + cls); e.appendChild(K.el('i', 'shine run')); text.appendChild(e); });
+      [0, 1, 2].forEach(function () { var e = K.el('span', 'ph ph-btn'); e.appendChild(K.el('i', 'shine run')); buttons.appendChild(e); });
+      text.appendChild(buttons);
+      head.appendChild(text);
+    }
+    loadingHeader();
     twice(function (cb) { K.api.channel(c.slug, cb); }, function (err, ch) { header(err ? null : ch); });
 
     // Clips: more pages load as focus nears the end of the row.
@@ -518,7 +601,6 @@
     var s = base('settings', true), sc = s.scroller, wrap = K.el('div', 'acct'), signedIn = K.auth.signedIn(), user = K.auth.user || {};
     sc.setAttribute('data-scroll', 'list');
     sc.appendChild(wrap);
-    s.el.appendChild(K.el('div', 'acct-fade'));  // rows scrolled up fade out under the top bar
 
     function maskIcon(file) { var i = K.el('span', 'icon'); i.style.webkitMaskImage = 'url(img/' + file + '.svg)'; return i; }
     function section(text) { wrap.appendChild(K.el('div', 'acct-sec', text)); }
@@ -540,7 +622,7 @@
       return r;
     }
     function qrPage(title, url, image) {
-      K.modal.show({ title: title, text: K.t('Visit {url}', { url: url }), image: 'img/' + image + '.svg', buttons: [[K.t('Done'), null, true]] });
+      K.modal.show({ title: title, text: K.t('On your phone or computer, visit:'), url: url, image: 'img/' + image + '.svg', buttons: [[K.t('Done'), null, true]] });
     }
     function playbackValue() { return (K.prefs.quality === 'auto' ? K.t('Auto') : K.prefs.quality + 'p') + ' · ' + K.t('Chat') + ' ' + K.t(K.prefs.chat ? 'On' : 'Off'); }
     function options(label, opts, current, pick, v, value) {
@@ -558,14 +640,26 @@
         if (!user.name) { K.auth.refreshUser(function () { K.app.reload('settings'); }); return; }
         K.app.push(screens.channel({ slug: slug, name: user.name, avatar: user.avatar }));
       });
+      // Other signed-in accounts, and adding one (the QR sign-in again).
+      var others = K.auth.accounts().slice(1);
+      row('ic_profile', K.t(others.length ? 'Switch account' : 'Add account'),
+        others.length ? K.t('{n} accounts on this TV', { n: others.length + 1 }) : K.t('Use another Kick account'), function () {
+          if (!others.length) { K.app.push(screens.login()); return; }
+          var list = K.auth.accounts().map(function (a) { return { id: a.token, label: (a.user && a.user.name) || K.t('Kick account') }; });
+          list.push({ id: '+', label: '+ ' + K.t('Add account') });
+          K.modal.options(K.t('Switch account'), list, K.auth.token, function (id) {
+            if (id === '+') { K.app.push(screens.login()); } else { K.auth.use(id); }
+          });
+        });
     } else {
       row('ic_profile', K.t('Sign in'), K.t('Use the Kick app on your phone'), function () { K.app.push(screens.login()); });
     }
 
     section(K.t('Preferences'));
     // The app's language; streams are listed in the same language.
-    row('ic_language', K.t('Language'), K.languageName(K.prefs.language), function () {
-      K.modal.options(K.t('Language'), K.LANGUAGES.map(function (l) { return { id: l[0], label: l[1] }; }), K.prefs.language, K.setLanguage);
+    row('ic_language', K.t('Language'), (K.prefs.languageChosen ? '' : K.t('Automatic') + ' · ') + K.languageName(K.prefs.language), function () {
+      var list = [{ id: 'auto', label: K.t('Automatic') + ' (' + K.languageName(K.deviceLanguage()) + ')' }].concat(K.LANGUAGES.map(function (l) { return { id: l[0], label: l[1] }; }));
+      K.modal.options(K.t('Language'), list, K.prefs.languageChosen ? K.prefs.language : 'auto', K.setLanguage);
     });
     var res = K.t('Resolution') + ': ';
     row('ic_play', K.t('Playback'), playbackValue(), function (v) {
@@ -581,11 +675,15 @@
     toggle('ic_content', K.t('Hide 18+ streams'), function () { return K.prefs.hideMature; }, content('hideMature'));
     toggle('ic_content', K.t('Hide Pools, Hot Tubs & Bikinis'), function () { return K.prefs.hidePools; }, content('hidePools'));
     // Which streams Kick lists; follows the app language until chosen here.
-    function contentLanguageName() { return K.contentLanguage() === 'all' ? K.t('All languages') : K.languageName(K.contentLanguage()); }
+    // Which streams Kick lists: chosen here, or automatic (the country's language, else the app's).
+    function languageLabel(code) { return code === 'all' ? K.t('All languages') : K.langName(code); }
+    function contentLanguageName() { return (K.prefs.contentLanguage ? '' : K.t('Automatic') + ' · ') + languageLabel(K.contentLanguage()); }
     row('ic_language', K.t('Content language'), contentLanguageName(), function (v) {
-      var list = K.LANGUAGES.map(function (l) { return { id: l[0], label: l[1] }; }).concat([{ id: 'all', label: K.t('All languages') }]);
-      K.modal.options(K.t('Content language'), list, K.contentLanguage(), function (id) {
-        K.prefs.contentLanguage = id;
+      var auto = K.prefs.countryLanguage || K.prefs.language;
+      var list = [{ id: '', label: K.t('Automatic') + ' (' + languageLabel(auto) + ')' }, { id: 'all', label: K.t('All languages') }]
+        .concat(K.streamLanguages.map(function (c) { return { id: c, label: K.langName(c) }; }).sort(function (a, b) { return a.label.localeCompare(b.label); }));
+      K.modal.options(K.t('Content language'), list, K.prefs.contentLanguage || '', function (id) {
+        if (id) { K.prefs.contentLanguage = id; } else { delete K.prefs.contentLanguage; }
         K.savePrefs();
         K.app.prefsChanged('language');
         v.textContent = contentLanguageName();
@@ -593,6 +691,65 @@
     });
 
     section(K.t('Help & Legal'));
+    // Updates: the latest release from GitHub and its changelog.
+    function updateValue() {
+      var l = K.update.latest();
+      return K.update.available() ? K.t('Update available: {v}', { v: l.version }) : l ? K.t('Up to date') : K.t('Check for updates');
+    }
+    var upd = row('ic_information', K.t('Updates'), updateValue(), function (v) {
+      v.textContent = K.t('Checking…');
+      K.update.check(function (err) {
+        v.textContent = err ? K.t('Could not check') : updateValue();
+        upd.classList.toggle('has-update', K.update.available());
+        K.app.updateChanged();
+        if (!err) { changelog(); }
+      }, true);
+    });
+    upd.classList.toggle('has-update', K.update.available());
+    function changelog() {
+      var l = K.update.latest(), wrap = K.el('div', 'changelog-wrap'), box = K.el('div', 'changelog f'), bar = K.el('div', 'scrollbar'), thumb = K.el('i'), list = K.update.changes();
+      bar.appendChild(thumb);
+      wrap.appendChild(box);
+      wrap.appendChild(bar);
+      list.forEach(function (c) { box.appendChild(c.head ? K.el('h3', '', c.head) : K.el('div', 'item', c.item)); });
+      if (!list.length) { box.appendChild(K.el('div', 'item', K.t('No changelog for this version.'))); }
+      // Up/down scroll a long changelog; past its end, focus moves on to the buttons.
+      // A slim scrollbar beside a list that's longer than its box (green while focused).
+      function more() {
+        var h = box.scrollHeight, v = box.clientHeight;
+        bar.hidden = h <= v + 2;
+        thumb.style.height = Math.round(v / h * 100) + '%';
+        thumb.style.top = Math.round(box.scrollTop / h * 100) + '%';
+      }
+      box._dir = function (k) {
+        if (k !== 'up' && k !== 'down') { return false; }
+        var before = box.scrollTop;
+        box.scrollTop += k === 'down' ? 140 : -140;
+        more();
+        return box.scrollTop !== before;
+      };
+      setTimeout(more, 0);
+      // OK on the list does what the first button does (update, or Done).
+      box._select = function () { var first = K.$('modal').querySelector('.dialog-buttons .btn'); if (first) { first._select(); } };
+      var newer = K.update.available(), store = newer && K.update.tvStore(), buttons = [[K.t('Done'), null, !store]];
+      if (store) { buttons.unshift([K.t('Update with TV-Store'), K.update.openTvStore, true]); }
+      K.modal.show({
+        cls: newer ? 'wide' : 'notes', title: newer ? K.t("What's new in {v}", { v: l.version }) : K.t('Kick {v} · up to date', { v: K.VERSION }),
+        text: !newer ? null : store ? K.t('Install it with TV-Store on this TV, or with Apps2Samsung on your phone or PC.')
+          : K.t('Scan the QR code and install it with Apps2Samsung on your phone or PC.'),
+        body: wrap, qr: newer ? l.url : null, buttons: buttons
+      });
+    }
+
+    // Report a problem: a GitHub issue for this app, with the TV and version already filled in.
+    row('ic_report', K.t('Report a problem'), 'GitHub', function () {
+      var title = '[' + K.deviceName().replace(/^Samsung /, '') + '] Kick ' + K.VERSION + ': ';
+      var body = '**TV:** ' + K.deviceName() + '\n**App:** Kick ' + K.VERSION + '\n**Language:** ' + K.prefs.language + ' / ' + K.contentLanguage() +
+        '\n\n**What happened?**\n\n\n**What did you expect?**\n';
+      var url = 'https://github.com/madarra16/kick-tizen/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+      K.modal.show({ title: K.t('Report a problem'), text: K.t('Scan the QR code and describe what went wrong. Your TV model and app version are already filled in.'),
+        qr: url, buttons: [[K.t('Done'), null, true]] });
+    });
     row('ic_information', K.t('Find Help online'), 'help.kick.com', function () { qrPage(K.t('Help'), 'help.kick.com', 'qr_help'); });
     row('ic_lock', K.t('Privacy Policy'), 'kick.com/privacy-policy', function () { qrPage(K.t('Privacy Policy'), 'kick.com/privacy-policy', 'qr_privacy'); });
     row('ic_pen', K.t('Terms of Service'), 'kick.com/terms-of-service', function () { qrPage(K.t('Terms of Service'), 'kick.com/terms-of-service', 'qr_terms_of_service'); });

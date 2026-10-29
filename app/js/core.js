@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var K = window.K = { VERSION: '1.1.0', HELPER: 'http://127.0.0.1:47820', HELPER_IMAGES: 'http://127.0.0.1:47821', HELPER_ID: 'KickLive01.Helper' };
+  var K = window.K = { VERSION: '1.2.0', HELPER: 'http://127.0.0.1:47820', HELPER_IMAGES: 'http://127.0.0.1:47821', HELPER_ID: 'KickLive01.Helper' };
 
   K.$ = function (id) { return document.getElementById(id); };
 
@@ -26,7 +26,8 @@
     del: function (key) { try { localStorage.removeItem(key); } catch (e) { /* blocked */ } }
   };
 
-  var PREF_DEFAULTS = { hideGambling: true, hideMature: false, hidePools: false, language: 'en', quality: 'auto', chat: true };
+  // language: the TV's own language until one is chosen in Account (i18n.js).
+  var PREF_DEFAULTS = { hideGambling: true, hideMature: false, hidePools: false, quality: 'auto', chat: true };
   K.prefs = K.store.get('kick.prefs', {});
   Object.keys(PREF_DEFAULTS).forEach(function (k) { if (!(k in K.prefs)) { K.prefs[k] = PREF_DEFAULTS[k]; } });
   K.savePrefs = function () { K.store.set('kick.prefs', K.prefs); };
@@ -159,6 +160,28 @@
     ar: 'Arabic', pl: 'Polish', nl: 'Dutch', ja: 'Japanese', ko: 'Korean', zh: 'Chinese', hi: 'Hindi', id: 'Indonesian', vi: 'Vietnamese',
     fi: 'Finnish', sv: 'Swedish', no: 'Norwegian', da: 'Danish', cs: 'Czech', ro: 'Romanian', el: 'Greek', hu: 'Hungarian', uk: 'Ukrainian', th: 'Thai' };
   K.langEnglish = function (code) { return LANGS[String(code || '').toLowerCase()] || ''; };
+  K.streamLanguages = Object.keys(LANGS);
+
+  // Country (ISO 3166) -> stream language, for the content language Kick lists by default.
+  // Countries not listed here speak English, or a language Kick has no streams in.
+  var COUNTRY_LANGS = { de: 'DE AT CH LI LU', es: 'ES MX AR CO CL PE VE EC GT CU BO DO HN PY SV NI CR PA UY PR', pt: 'BR PT AO MZ',
+    fr: 'FR BE MC SN CI CM', it: 'IT SM', tr: 'TR', ru: 'RU BY KZ KG', ar: 'SA AE EG MA DZ TN IQ JO KW QA BH OM LB LY SY YE SD PS',
+    pl: 'PL', nl: 'NL SR', ja: 'JP', ko: 'KR', zh: 'CN TW HK MO', hi: 'IN', id: 'ID', vi: 'VN', fi: 'FI', sv: 'SE', no: 'NO', da: 'DK',
+    cs: 'CZ', ro: 'RO MD', el: 'GR CY', hu: 'HU', uk: 'UA', th: 'TH' };
+  K.countryLanguage = function (country) {
+    country = String(country || '').toUpperCase();
+    for (var l in COUNTRY_LANGS) { if ((' ' + COUNTRY_LANGS[l] + ' ').indexOf(' ' + country + ' ') >= 0) { return l; } }
+    return null;
+  };
+
+  // The country of this connection, from Kick's own server (Cloudflare's trace page on kick.com):
+  // no other service learns anything. cb(country or null).
+  K.country = function (cb) {
+    K.http('GET', 'https://kick.com/cdn-cgi/trace', { timeout: 4000 }, function (err, d) {
+      var m = !err && /(^|\n)loc=([A-Z]{2})/.exec(String(d || ''));
+      cb(m ? m[2] : null);
+    });
+  };
   // The app's own languages by their own names (as in the language list), others in English.
   K.langName = function (l) {
     l = String(l || '');
@@ -220,13 +243,18 @@
     return h.slice(0, 4).join('') + '-' + h.slice(4, 6).join('') + '-' + h.slice(6, 8).join('') + '-' + h.slice(8, 10).join('') + '-' + h.slice(10).join('');
   };
 
-  // QR code as an <img> (qrcode-generator, MIT).
-  K.qr = function (text, px) {
-    var q = window.qrcode(0, 'M');
+  // QR code as an <img> (qrcode-generator, MIT). light: white modules on the dark page, the way
+  // the official TV app draws its QR codes; otherwise black on white.
+  K.qr = function (text, px, light) {
+    var q = window.qrcode(0, 'M'), img = K.el('img');
     q.addData(text);
     q.make();
-    var img = K.el('img');
-    img.src = q.createDataURL(Math.max(2, Math.floor(px / (q.getModuleCount() + 8))), 4);
+    if (!light) { img.src = q.createDataURL(Math.max(2, Math.floor(px / (q.getModuleCount() + 8))), 4); return img; }
+    var n = q.getModuleCount(), c = document.createElement('canvas'), g = c.getContext('2d'), r, col;
+    c.width = c.height = n;
+    g.fillStyle = '#fff';
+    for (r = 0; r < n; r++) { for (col = 0; col < n; col++) { if (q.isDark(r, col)) { g.fillRect(col, r, 1, 1); } } }
+    img.src = c.toDataURL('image/png');
     return img;
   };
 

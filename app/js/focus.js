@@ -82,13 +82,13 @@
     }
     var scroller = el.closest('.scroller');
     if (scroller) {
-      var anchor = el.closest('.grid') ? el : (el.closest('.sec') || el), pos = offsetWithin(anchor, scroller);
+      var anchor = el.closest('.grid') || el.closest('.slist') ? el : (el.closest('.sec') || el), pos = offsetWithin(anchor, scroller);
       var bottom = pos.top + anchor.offsetHeight, y = pos.top - 110, cur = scroller._off || 0;
       if (scroller.getAttribute('data-scroll') === 'list') {
         y = pos.top - cur < 150 ? pos.top - 150 : bottom - cur > 1080 - 60 ? bottom - 1080 + 60 : cur;
       } else if (bottom <= 1080 - 70 || anchor.hasAttribute('data-top')) { y = 0; }
       y = Math.max(0, Math.min(y, scroller.offsetHeight - 1080));
-      if (y !== scroller._off) { scroller._off = y; scroller.style.transform = 'translateY(' + -y + 'px)'; }
+      if (y !== scroller._off) { scroller._off = y; scroller.style.transform = 'translateY(' + -y + 'px)'; if (K.app) { K.app.scrolled(scroller, y); } }
     }
   };
 })(window.K);

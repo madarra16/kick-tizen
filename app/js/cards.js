@@ -12,7 +12,7 @@
         entries.forEach(function (e) {
           if (e.isIntersecting) { show(e.target); io.unobserve(e.target); }
         });
-      }, { root: K.$('screens'), rootMargin: '400px 1300px' });  // #screens clips, so watch it rather than the page
+      }, { root: K.$('screens'), rootMargin: '540px 1300px' });  // #screens clips, so watch it rather than the page
     }
     img.setAttribute('data-src', url);
     if (io) { io.observe(img); } else { show(img); }
@@ -22,6 +22,15 @@
   function show(img) { K.helper.wait(function () { img.src = K.helper.url(img.getAttribute('data-src')); }); }
 
   function img(cls, src) { var i = K.el('img', cls); i.src = src; return i; }
+  // A shimmer over the picture's place until the picture has loaded (or failed).
+  function shine(holder, pic) {
+    var s = K.el('i', 'shine');
+    function done() { if (s.parentNode) { s.parentNode.removeChild(s); } }
+    pic.addEventListener('load', done);
+    pic.addEventListener('error', done);
+    holder.appendChild(s);
+    return s;
+  }
   function icon(name) { return K.el('span', 'icon i-' + name); }
 
   // "*Categories* For You" -> highlighted first part (KickRowTitle).
@@ -31,17 +40,21 @@
     return h;
   }
 
-  var cards = K.cards = { lazy: lazy, heading: heading, icon: icon };
+  var cards = K.cards = { lazy: lazy, heading: heading, icon: icon, shine: shine };
 
   cards.stream = function (s) {
-    var c = K.el('div', 'card f'), info = K.el('div', 'info'), lines = K.el('div', 'lines'), count = K.el('div', 'count'), meta = K.el('div', 'meta');
-    c.appendChild(lazy(K.el('img', 'thumb'), s.thumb));
+    var c = K.el('div', 'card f'), info = K.el('div', 'info'), lines = K.el('div', 'lines'), count = K.el('div', 'count'), meta = K.el('div', 'meta'), th = K.el('img', 'thumb');
+    c.appendChild(lazy(th, s.thumb));
+    if (s.thumb) { shine(c, th); }
     c.appendChild(K.el('div', 'shade'));
     c.appendChild(img('live', 'img/ic_live_badge.svg'));
     count.appendChild(icon('viewers'));
     count.appendChild(document.createTextNode(K.count(s.viewers)));
     c.appendChild(count);
-    info.appendChild(lazy(K.el('img', 'avatar'), s.avatar));
+    var av = K.el('span', 'av'), avi = K.el('img', 'avatar');
+    av.appendChild(lazy(avi, s.avatar));
+    if (s.avatar) { shine(av, avi); }
+    info.appendChild(av);
     lines.appendChild(K.el('div', 'name', s.name));
     lines.appendChild(K.el('div', 'title', s.title));
     if (s.category) { meta.appendChild(K.el('span', '', s.category)); }
@@ -54,8 +67,8 @@
   };
 
   cards.category = function (cat, big) {
-    var c = K.el('div', 'cat f' + (big ? ' big' : ''));
-    if (cat.image) { c.appendChild(lazy(K.el('img'), cat.image)); } else { c.appendChild(K.el('div', 'noart', cat.name)); }
+    var c = K.el('div', 'cat f' + (big ? ' big' : '')), art = K.el('img');
+    if (cat.image) { c.appendChild(lazy(art, cat.image)); shine(c, art); } else { c.appendChild(K.el('div', 'noart', cat.name)); }
     c._data = cat;
     c._select = function () { K.app.push(K.screens.category(cat)); };
     return c;
@@ -65,7 +78,9 @@
   // Channel circle: live channels get the green ring and LIVE pill.
   cards.channel = function (ch, sub, small) {
     var c = K.el('div', 'chan f' + (ch.live ? ' live' : '') + (small ? ' small' : '')), ring = K.el('div', 'ring'), name = K.el('div', 'name');
-    ring.appendChild(lazy(K.el('img', 'avatar'), ch.avatar));
+    var av = K.el('img', 'avatar');
+    ring.appendChild(lazy(av, ch.avatar));
+    if (ch.avatar) { shine(ring, av); }
     if (ch.live) { ring.appendChild(img('pill', 'img/ic_live_badge_inverse.svg')); }
     c.appendChild(ring);
     name.appendChild(K.el('span', '', ch.name));
@@ -77,10 +92,25 @@
     return c;
   };
 
+  // A live channel as a list row (search, before typing): ringed avatar, name, category, viewers.
+  cards.liveItem = function (s) {
+    var c = K.el('div', 'srow f'), av = K.el('span', 'ring'), pic = K.el('img', 'avatar'), lines = K.el('div', 'lines');
+    av.appendChild(lazy(pic, s.avatar));
+    if (s.avatar) { shine(av, pic); }
+    c.appendChild(av);
+    lines.appendChild(K.el('div', 'name', s.name));
+    lines.appendChild(K.el('div', 'sub', s.category || ''));
+    c.appendChild(lines);
+    c.appendChild(K.el('div', 'viewers', K.count(s.viewers)));
+    c._data = s;
+    return c;
+  };
+
   // Clip or past broadcast: duration and views on the picture, title and date below the gradient.
   cards.vod = function (it) {
-    var c = K.el('div', 'card vod f'), info = K.el('div', 'info'), lines = K.el('div', 'lines'), count = K.el('div', 'count'), meta = K.el('div', 'meta');
-    c.appendChild(lazy(K.el('img', 'thumb'), it.thumb));
+    var c = K.el('div', 'card vod f'), info = K.el('div', 'info'), lines = K.el('div', 'lines'), count = K.el('div', 'count'), meta = K.el('div', 'meta'), th = K.el('img', 'thumb');
+    c.appendChild(lazy(th, it.thumb));
+    if (it.thumb) { shine(c, th); }
     c.appendChild(K.el('div', 'shade'));
     if (it.duration) { c.appendChild(K.el('span', 'dur', K.hms(it.duration))); }
     count.appendChild(icon('viewers'));
@@ -120,10 +150,18 @@
     };
   };
 
-  cards.skeleton = function (n) {
-    var f = document.createDocumentFragment(), i;
-    for (i = 0; i < n; i++) { f.appendChild(K.el('div', 'card skeleton')); }
+  // Shimmering placeholders in the shape of what's coming: 'card' (default), 'cat', 'cat big', 'chan'.
+  cards.skeleton = function (n, kind) {
+    var f = document.createDocumentFragment(), i, e;
+    for (i = 0; i < n; i++) {
+      e = K.el('div', (kind || 'card') + ' skeleton');
+      if (kind === 'chan') { e.appendChild(K.el('div', 'ring')); e.appendChild(K.el('div', 'bar')); }
+      f.appendChild(e);
+    }
     return f;
+  };
+  cards.unskeleton = function (parent) {
+    Array.prototype.forEach.call(parent.querySelectorAll('.skeleton'), function (e) { e.parentNode.removeChild(e); });
   };
 
   // Horizontal row section. build(item, index, items) -> element.
