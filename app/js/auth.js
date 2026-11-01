@@ -9,6 +9,27 @@
   var saved = K.store.get(KEY, null) || {}, accounts = K.store.get(LIST, []);
   if (saved.token && !accounts.some(function (a) { return a.token === saved.token; })) { accounts.unshift({ token: saved.token, user: saved.user || null }); }
 
+  // The account's own settings from kick.com: muted users, and the content filters. A filter changed
+  // on kick.com since the last look is copied into the app's toggle (both ways); the first look
+  // only turns hiding on, so a fresh sign-in never shows more than before.
+  function syncAccount(token) {
+    K.api.muted(token, function (err, ids) {
+      if (err || auth.token !== token) { return; }
+      auth.muted = {};
+      ids.forEach(function (id) { auth.muted[id] = true; });
+    });
+    K.api.contentFilters(token, function (err, f) {
+      if (err || auth.token !== token) { return; }
+      var seen = K.store.get('kick.accountFilters', null), changed = [];
+      [['slot', 'hideGambling'], ['pool', 'hidePools'], ['vr', 'hideVr']].forEach(function (p) {
+        var now = f[p[0]];
+        if (seen ? now !== seen[p[0]] : now) { if (K.prefs[p[1]] !== now) { K.prefs[p[1]] = now; changed.push(p[1]); } }
+      });
+      K.store.set('kick.accountFilters', f);
+      if (changed.length) { K.savePrefs(); changed.forEach(function (k) { K.app.prefsChanged(k); }); }
+    });
+  }
+
   function code() {
     var b = new Uint8Array(6), out = '', i;
     if (window.crypto && crypto.getRandomValues) { crypto.getRandomValues(b); } else { for (i = 0; i < 6; i++) { b[i] = Math.floor(Math.random() * 256); } }
@@ -19,6 +40,7 @@
   var auth = K.auth = {
     token: saved.token || null,
     user: saved.user || null,
+    muted: {},  // user id -> true: their chat messages stay hidden
 
     signedIn: function () { return !!auth.token; },
 
@@ -37,6 +59,7 @@
     use: function (token) {
       var a = accounts.filter(function (x) { return x.token === token; })[0];
       if (!a || a.token === auth.token) { return; }
+      auth.muted = {};
       auth.token = a.token;
       auth.user = a.user;
       auth.save();
@@ -50,6 +73,7 @@
       accounts = accounts.filter(function (a) { return a.token !== gone; });
       auth.token = next ? next.token : null;
       auth.user = next ? next.user : null;
+      auth.muted = {};
       auth.save();
       K.app.authChanged();
       if (next) { auth.refreshUser(); }
@@ -67,6 +91,7 @@
           return;
         }
         auth.lastError = null;
+        syncAccount(auth.token);
         var slug = (d.streamer_channel && d.streamer_channel.slug) || d.username;
         function done(pic) {
           auth.user = { name: d.username, slug: slug, avatar: pic || null };

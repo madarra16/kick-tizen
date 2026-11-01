@@ -330,8 +330,13 @@
   }
 
   // Resolutions of a master playlist (fetched through the helper); a media playlist gives just "Auto".
-  function loadQualities(master, done) {
-    var url = proxied(master), x = new XMLHttpRequest(), list = [{ id: 'auto', label: K.t('Auto'), url: url }];
+  // Live streams: the helper lists only the newest LIVE_EDGE_S seconds, so AVPlay starts ~6 s behind
+  // live, as the official app's player keeps it.
+  var LIVE_EDGE_S = 8;
+  function liveUrl(master) { return proxied(master) + (K.helper.ready() ? '&edge=' + LIVE_EDGE_S : ''); }
+
+  function loadQualities(master, done, live) {
+    var url = live ? liveUrl(master) : proxied(master), x = new XMLHttpRequest(), list = [{ id: 'auto', label: K.t('Auto'), url: url }];
     x.open('GET', url, true);
     x.timeout = 12000;
     x.onload = function () {
@@ -454,7 +459,7 @@
             if (my !== seq) { return; }
             state.liveQualities = state.qualities = list;
             start(pick(list), my, 0);
-          });
+          }, true);
         }, true);
       });
     });

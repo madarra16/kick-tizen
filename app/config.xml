@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://local/kick-tizen" version="1.2.0" viewmodes="maximized">
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://local/kick-tizen" version="1.3.0" viewmodes="maximized">
   <name>Kick</name>
   <icon src="banner.png"/>
   <content src="index.html"/>
@@ -10,6 +10,10 @@
     <tizen:name>KickHelper</tizen:name>
     <tizen:description>Fetches Kick's API, images, playlists and video segments for the app (fast name lookups, segment cache)</tizen:description>
   </tizen:service>
+  <!-- the TV's own loading screen becomes the Kick intro; js/splash.js ends it (window.screen.show) -->
+  <tizen:video_splash_screen ready_when="custom">
+    <tizen:vss_default video="media/splash.mp4" background_image="media/splash-end.jpg" background_color="#000000" image="media/none.png" image_border="0px stretch"/>
+  </tizen:video_splash_screen>
   <tizen:profile name="tv-samsung"/>
   <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
   <access origin="*" subdomains="true"/>

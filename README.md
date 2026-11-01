@@ -31,8 +31,9 @@ Live streams, clips and chat on Tizen TVs, with the look and feel of Kick's Andr
 - **10 languages**: English, Español, Deutsch, Português, Français, 中文, 日本語, 한국어, हिन्दी, العربية.
   The app speaks your TV's language, and lists streams in your country's language, until you
   choose otherwise
-- **Content settings**: content language (all 27 of Kick's), hide gambling, 18+ or pools / hot tubs
-  streams, and a warning before 18+ content
+- **Content settings**: content language (all 27 of Kick's), hide gambling, 18+, pools / hot tubs
+  or VRChat streams, and a warning before 18+ content. Signed in, the filters you set on kick.com
+  apply too, and users you muted on Kick stay hidden in chat
 - **Update check** with changelog, and **Report a problem** straight from the TV
 
 ## Compatibility

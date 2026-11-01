@@ -201,6 +201,19 @@
       });
     },
 
+    // The content filters set on kick.com ({ slot, pool, vr }: hide gambling, Pools, VRChat) and the
+    // users this account muted in chat, as the official TV app reads them.
+    contentFilters: function (token, cb) {
+      K.http('GET', SITE + '/api/v2/user/filtered-categories', { headers: auth(token) }, function (err, d) {
+        d = d && d.data && typeof d.data === 'object' ? d.data : d;
+        cb(err || !d || typeof d !== 'object' ? err || {} : null, d && { slot: !!d.slot, pool: !!d.pool, vr: !!d.vr });
+      });
+    },
+    muted: function (token, cb) {
+      K.http('GET', SITE + '/api/v2/silenced-users', { headers: auth(token) }, function (err, d) {
+        cb(err, ((d && d.data) || []).map(function (u) { return u && u.id; }).filter(Boolean));
+      });
+    },
     me: function (token, cb) { K.http('GET', SITE + '/api/v1/user', { headers: auth(token) }, cb); },
 
     // Categories the signed-in user follows (the official app's getUserFollowedCategories).

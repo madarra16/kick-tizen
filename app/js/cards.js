@@ -22,10 +22,26 @@
   function show(img) { K.helper.wait(function () { img.src = K.helper.url(img.getAttribute('data-src')); }); }
 
   function img(cls, src) { var i = K.el('img', cls); i.src = src; return i; }
-  // A shimmer over the picture's place until the picture has loaded (or failed).
+  // A shimmer over the picture's place until the picture has loaded (or failed). The pictures of
+  // one row (or grid) appear together: the shimmers go once none of that row's fetched pictures is
+  // still loading, or REVEAL_MS after the first one arrived, so one slow picture can't hold the rest.
+  var REVEAL_MS = 1200;
+  function reveal(group) {
+    clearTimeout(group._revealTimer);
+    group._revealTimer = null;
+    Array.prototype.forEach.call(group.querySelectorAll('img[src] + .shine'), function (sh) {
+      if (sh.previousSibling.complete) { sh.parentNode.removeChild(sh); }
+    });
+  }
+  function arrived(pic) {
+    var group = pic.parentNode && pic.parentNode.closest ? pic.parentNode.closest('.track, .grid') : null;
+    if (!group) { if (pic.nextSibling) { pic.parentNode.removeChild(pic.nextSibling); } return; }
+    var waiting = Array.prototype.some.call(group.querySelectorAll('img[src] + .shine'), function (sh) { return !sh.previousSibling.complete; });
+    if (!waiting) { reveal(group); } else if (!group._revealTimer) { group._revealTimer = setTimeout(function () { reveal(group); }, REVEAL_MS); }
+  }
   function shine(holder, pic) {
     var s = K.el('i', 'shine');
-    function done() { if (s.parentNode) { s.parentNode.removeChild(s); } }
+    function done() { if (s.parentNode && s.previousSibling === pic) { arrived(pic); } else if (s.parentNode) { s.parentNode.removeChild(s); } }
     pic.addEventListener('load', done);
     pic.addEventListener('error', done);
     holder.appendChild(s);

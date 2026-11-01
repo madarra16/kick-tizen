@@ -45,6 +45,9 @@
     if (last < text.length) { parent.appendChild(document.createTextNode(text.slice(last))); }
   }
 
+  // Messages from users this account muted on Kick are left out.
+  function muted(m) { return !!(m && m.sender && K.auth.muted[m.sender.id]); }
+
   function line(m) {
     var d = K.el('div', 'msg'), s = m.sender || {}, id = s.identity || {};
     d.setAttribute('data-id', m.id || '');
@@ -93,7 +96,7 @@
     var d = data;
     if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return; } }
     switch (evt) {
-      case 'App\\Events\\ChatMessageEvent': if (!info.quiet) { queue.push(line(d)); } break;
+      case 'App\\Events\\ChatMessageEvent': if (!info.quiet && !muted(d)) { queue.push(line(d)); } break;
       case 'App\\Events\\MessageDeletedEvent':
         var gone = d.message && listEl().querySelector('[data-id="' + String(d.message.id).replace(/"/g, '') + '"]');
         if (gone) { gone.parentNode.removeChild(gone); }
@@ -151,7 +154,7 @@
       K.api.messages(opts.channelId, function (err, d) {
         if (myGen !== gen || err || !d || !d.data || opts.quiet) { return; }
         var msgs = (d.data.messages || []).slice().sort(function (a, b) { return K.parseTime(a.created_at) - K.parseTime(b.created_at); });
-        var lines = msgs.slice(-30).map(line);
+        var lines = msgs.filter(function (m) { return !muted(m); }).slice(-30).map(line);
         queue = lines.concat(queue);
         pinned(d.data.pinned_message && (d.data.pinned_message.message || d.data.pinned_message));
       });

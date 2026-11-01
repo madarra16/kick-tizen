@@ -90,10 +90,20 @@
   // ---- Home: featured carousel (FeaturedCarouselRow) + rows ----
   screens.home = function () {
     var s = base('home', true), sc = s.scroller, featured = [], index = 0, timer = null, front = 0;
-    var hero = K.el('div', 'hero f loading'), imgs = [K.el('img', 'hero-img'), K.el('img', 'hero-img')], info = K.el('div', 'hero-info'),
-      badges = K.el('div', 'hero-badges'), head = K.el('div', 'hero-head'), dots = K.el('div', 'hero-dots');
-    hero.appendChild(imgs[0]);
-    hero.appendChild(imgs[1]);
+    var hero = K.el('div', 'hero f loading'), slides = [K.el('div', 'hero-slide'), K.el('div', 'hero-slide')], info = K.el('div', 'hero-info'),
+      badges = K.el('div', 'hero-badges'), head = K.el('div', 'hero-head'), dots = K.el('div', 'hero-dots'), leaveTimer = null;
+    slides.forEach(function (sl) { sl.appendChild(K.el('img', 'hero-img')); hero.appendChild(sl); });
+    // The top bar's frosted glass is a small copy of the two slides; mirror() makes it match.
+    var mirrors = [];
+    function mirror() {
+      slides.forEach(function (sl, n) {
+        var m = mirrors[n];
+        if (!m) { return; }
+        m.className = sl.className;
+        m.style.transform = sl.style.transform;
+        if (m.firstChild.src !== sl.firstChild.src) { m.firstChild.src = sl.firstChild.src; }
+      });
+    }
     hero.appendChild(K.el('div', 'hero-grad'));
     info.appendChild(badges);
     info.appendChild(head);
@@ -110,12 +120,42 @@
       void info.offsetWidth;
       info.classList.add('swap');
     }
-    // The next picture loads behind the current one, then the two crossfade (with a slow zoom)
-    // and the text changes with it; a picture that doesn't load still gets its text.
-    function show(i, now) {
+    // The next picture loads off screen, then slides in from the side it was asked from (dir 1:
+    // from the right, -1: from the left) and pushes the current one out; the text changes with it.
+    // The first one appears in place. A picture that doesn't load still gets its text.
+    function slideIn(dir) {
+      var inn = slides[1 - front], out = slides[front], first = !out.classList.contains('on');
+      clearTimeout(leaveTimer);
+      slides.forEach(function (sl) { sl.classList.remove('move', 'leaving'); });
+      inn.classList.remove('on');
+      inn.style.transform = first ? 'none' : 'translateX(' + (dir * 100) + '%)';
+      if (first && !mirrors.length) {
+        K.app.backdrop(s, function (glass) {
+          mirrors = slides.map(function () { var m = K.el('div', 'hero-slide'); m.appendChild(K.el('img', 'hero-img')); glass.appendChild(m); return m; });
+        });
+      }
+      mirror();
+      void inn.offsetWidth;
+      inn.classList.add('on');
+      if (!first) {
+        out.classList.add('leaving');
+        inn.classList.add('move');
+        out.classList.add('move');
+        inn.style.transform = 'none';
+        out.style.transform = 'translateX(' + (-dir * 100) + '%)';
+        leaveTimer = setTimeout(function () { out.classList.remove('on', 'leaving', 'move'); mirror(); }, 800);
+      }
+      mirror();
+      front = 1 - front;
+    }
+    function show(i, now, dir) {
       if (!featured.length) { return; }
       index = (i + featured.length) % featured.length;
-      var st = featured[index], back = imgs[1 - front], texted = false;
+      // A slide still on its way out is the one the next picture loads into: it goes now.
+      clearTimeout(leaveTimer);
+      slides[1 - front].classList.remove('on', 'leaving', 'move');
+      mirror();
+      var st = featured[index], back = slides[1 - front].firstChild, texted = false;
       if (now) { texted = true; text(st); hero.classList.remove('loading'); }
       dots.innerHTML = featured.map(function (x, n) { return n === index ? '<i class="on"></i>' : '<i></i>'; }).join('');
       function showText() {
@@ -124,13 +164,10 @@
         text(st);
         hero.classList.remove('loading');
       }
-      back.classList.remove('on');
       back.onload = function () {
         if (featured[index] !== st) { return; }
         showText();
-        back.classList.add('on');
-        imgs[front].classList.remove('on');
-        front = 1 - front;
+        slideIn(dir || 1);
       };
       back.onerror = showText;
       back.src = K.helper.url(st.thumbLarge || st.thumb) || '';
@@ -142,7 +179,7 @@
     }
     hero._dir = function (k) {
       if (k !== 'left' && k !== 'right' || featured.length < 2) { return false; }
-      show(index + (k === 'right' ? 1 : -1));
+      show(index + (k === 'right' ? 1 : -1), false, k === 'right' ? 1 : -1);
       restartTimer();
       return true;
     };
@@ -176,7 +213,11 @@
       if (featured.length) { show(0, true); restartTimer(); } else { hero.classList.remove('loading'); head.innerHTML = '<div class="lines"><div class="name">' + K.esc(K.t('No featured streams right now')) + '</div></div>'; }
       s.ready();
     });
-    withFallback(K.api.recommendedStreams, K.api.popular, function (err, list) { fillOrNote(streams, list.filter(K.allowStream), K.cards.streamBuilder(), err); s.ready(); });
+    withFallback(K.api.recommendedStreams, K.api.popular, function (err, list) {
+      var shown = list.filter(K.allowStream);
+      fillOrNote(streams, shown, K.cards.streamBuilder(), err);
+      s.ready();
+    });
     // The four "Live in <category>" rows are in place (shimmering) from the start, so the page
     // doesn't grow row by row; each gets its title and streams when they arrive.
     var liveRows = [0, 1, 2, 3].map(function () {
@@ -674,6 +715,7 @@
     toggle('ic_content', K.t('Hide gambling streams'), function () { return K.prefs.hideGambling; }, content('hideGambling'));
     toggle('ic_content', K.t('Hide 18+ streams'), function () { return K.prefs.hideMature; }, content('hideMature'));
     toggle('ic_content', K.t('Hide Pools, Hot Tubs & Bikinis'), function () { return K.prefs.hidePools; }, content('hidePools'));
+    toggle('ic_content', K.t('Hide VRChat'), function () { return K.prefs.hideVr; }, content('hideVr'));
     // Which streams Kick lists; follows the app language until chosen here.
     // Which streams Kick lists: chosen here, or automatic (the country's language, else the app's).
     function languageLabel(code) { return code === 'all' ? K.t('All languages') : K.langName(code); }

@@ -102,10 +102,16 @@
     var root = stack[0] && stack[0].name;
     Array.prototype.forEach.call(nav.querySelectorAll('[data-go]'), function (n) { n.classList.toggle('active', n.getAttribute('data-go') === root); });
     navAway((s.scroller && s.scroller._off) || 0);
+    glassOn();
     if (!inNav && !K.player.isOpen() && !K.modal.isOpen()) { K.focus.setScope(s.el); }
   }
 
   // ---- top bar ----
+  // The frosted look over Home's banner (css .nav-glass): Home fills it with a copy of its banner;
+  // it shows only while Home is the screen.
+  var pill = nav.querySelector('.nav-pill'), glass = nav.querySelector('.nav-glass'), glassOwner = null;
+  function glassOn() { nav.classList.toggle('glass', !!glassOwner && current() === glassOwner); }
+
   // Scrolled down a screen: the bar slides away; it comes back at the top or when it's used.
   function navAway(y) { nav.classList.toggle('away', y > 40 && !inNav); }
 
@@ -173,16 +179,25 @@
     },
 
     screenReady: function (s) {
+      K.splash.done();
       if (s !== current() || inNav || K.player.isOpen() || K.modal.isOpen()) { return; }
       if (!K.focus.current || !s.el.contains(K.focus.current)) { K.focus.setScope(s.el); }
     },
 
     authChanged: function () { updateUser(); app.reload('home'); app.reload('following'); app.reload('settings'); },
     updateChanged: function () { updateUser(); },
+    // A screen takes the bar's glass: build(glass) fills it. Lined up with the screen's top left.
+    backdrop: function (owner, build) {
+      glassOwner = owner;
+      glass.textContent = '';
+      glass.style.left = -Math.round(pill.getBoundingClientRect().left + 1) + 'px';
+      build(glass);
+      glassOn();
+    },
     scrolled: function (scroller, y) { if (current() && current().scroller === scroller) { navAway(y); } },
 
     prefsChanged: function (key) {
-      if (key === 'hideGambling' || key === 'hideMature' || key === 'hidePools' || key === 'language') {
+      if (key === 'hideGambling' || key === 'hideMature' || key === 'hidePools' || key === 'hideVr' || key === 'language') {
         ['home', 'categories', 'live', 'search'].forEach(function (n) { if (roots[n] && stack[0] !== roots[n]) { destroy(roots[n]); delete roots[n]; } });
       }
     },

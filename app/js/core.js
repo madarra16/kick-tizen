@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var K = window.K = { VERSION: '1.2.0', HELPER: 'http://127.0.0.1:47820', HELPER_IMAGES: 'http://127.0.0.1:47821', HELPER_ID: 'KickLive01.Helper' };
+  var K = window.K = { VERSION: '1.3.0', HELPER: 'http://127.0.0.1:47820', HELPER_IMAGES: 'http://127.0.0.1:47821', HELPER_ID: 'KickLive01.Helper' };
 
   K.$ = function (id) { return document.getElementById(id); };
 
@@ -27,7 +27,7 @@
   };
 
   // language: the TV's own language until one is chosen in Account (i18n.js).
-  var PREF_DEFAULTS = { hideGambling: true, hideMature: false, hidePools: false, quality: 'auto', chat: true };
+  var PREF_DEFAULTS = { hideGambling: true, hideMature: false, hidePools: false, hideVr: false, quality: 'auto', chat: true };
   K.prefs = K.store.get('kick.prefs', {});
   Object.keys(PREF_DEFAULTS).forEach(function (k) { if (!(k in K.prefs)) { K.prefs[k] = PREF_DEFAULTS[k]; } });
   K.savePrefs = function () { K.store.set('kick.prefs', K.prefs); };
@@ -195,15 +195,19 @@
   // Kick's "Pools, Hot Tubs & Bikinis" category (id 16), the official TV app's third content filter.
   K.isPools = function (name, slug) { return slug === 'pools-hot-tubs-bikinis' || /^pools, hot tubs/i.test(name || ''); };
 
+  // VRChat, the third category kick.com's content filters can hide.
+  K.isVr = function (name, slug) { return slug === 'vrchat' || /^vrchat$/i.test(name || ''); };
+
   // Respects the content settings; used for every list of streams, clips or categories.
   K.allowStream = function (s) {
     if (K.prefs.hideGambling && K.isGambling(s.category, s.categoryParent)) { return false; }
     if (K.prefs.hidePools && K.isPools(s.category, s.categorySlug)) { return false; }
+    if (K.prefs.hideVr && K.isVr(s.category, s.categorySlug)) { return false; }
     if (K.prefs.hideMature && s.mature) { return false; }
     return true;
   };
   K.allowCategory = function (c) {
-    return !(K.prefs.hideGambling && K.isGambling(c.name, c.parent)) && !(K.prefs.hidePools && K.isPools(c.name, c.slug));
+    return !(K.prefs.hideGambling && K.isGambling(c.name, c.parent)) && !(K.prefs.hidePools && K.isPools(c.name, c.slug)) && !(K.prefs.hideVr && K.isVr(c.name, c.slug));
   };
 
   // Where each past broadcast was left (Continue Watching). Entries for a few seconds in, or near

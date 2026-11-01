@@ -55,10 +55,18 @@ img:not([src]) { visibility: hidden; }
   background: linear-gradient(180deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,0) 100%); transition: transform .3s ease-out, opacity .3s; }
 #nav.away { transform: translateY(-150px); opacity: 0; }
 .nav-logo { position: absolute; left: 48px; top: 44px; height: 28px; }
-/* the Kick phone app's "liquid glass" bar: see-through and flat, no colour of its own
-   (Chromium 63 has no backdrop blur, so the glass is a clear dark tint) */
+/* the Kick phone app's "liquid glass" bar: see-through and flat, no colour of its own; frosted where
+   the browser can blur what's behind it, a clear dark tint where it can't */
 .nav-pill { position: absolute; left: 50%; top: 26px; height: 64px; transform: translateX(-50%); display: flex; align-items: center;
-  padding: 0 7px; border-radius: 32px; white-space: nowrap; background: rgba(22,22,24,.55); border: 1px solid rgba(255,255,255,.06); }
+  padding: 0 7px; border-radius: 32px; white-space: nowrap; background: rgba(22,22,24,.55); border: 1px solid rgba(255,255,255,.06);
+  overflow: hidden; -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4); }
+/* Chromium 63 can't blur what's behind the bar, so over Home's banner the bar holds a copy of the
+   banner itself (its two slides, moving and zooming with it), drawn at 1/8 size and stretched back:
+   the stretch is the blur, and cheap. Lined up with the banner under it (js/app.js backdrop). */
+.nav-glass { position: absolute; z-index: -1; left: 0; top: -27px; width: 240px; height: 135px; transform-origin: 0 0; transform: scale(8);
+  filter: blur(1px) saturate(1.5) brightness(.9); opacity: 0; transition: opacity .5s; }
+.nav-glass .hero-slide, .nav-glass .hero-img { width: 240px; height: 135px; }
+#nav.glass .nav-glass { opacity: 1; }
 .nav-tab { position: relative; height: 50px; line-height: 50px; padding: 0 28px; margin: 0 1px; border-radius: 25px; font-size: 25px; font-weight: 600; color: var(--text);
   transition: background-color .15s ease-out; }
 .nav-tab.active { color: var(--green); }
@@ -212,8 +220,14 @@ img[src] + .shine:before, .shine.run:before { animation-play-state: running; }
 
 /* ---- home: featured carousel (FeaturedCarouselRow / ImmersiveStreamerHeader) ---- */
 .hero { position: relative; width: 1920px; height: 880px; margin: -104px 0 0 -48px; }
-.hero-img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; object-fit: cover; opacity: 0; transition: opacity .9s ease-in-out; }
-.hero-img.on { opacity: 1; animation: kenburns 9s ease-out both; }
+/* two slides take turns: the next slides in from the side it was asked from while the current one
+   slides out (moved, not repainted); the picture inside each zooms slowly while it's on */
+.hero-slide { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; visibility: hidden; }
+.hero-slide.on, .hero-slide.leaving { visibility: visible; }
+.hero-slide.move { transition: transform .75s cubic-bezier(.33,0,.15,1); }
+.hero-img { width: 1920px; height: 1080px; object-fit: cover; }
+.hero-slide.on .hero-img { animation: kenburns 9s ease-out both; }
+.hero-slide.leaving .hero-img { animation-play-state: paused; }
 @keyframes kenburns { from { transform: scale(1.0); } to { transform: scale(1.06); } }
 /* loading: a still surface with a light sliding over it (moved, not repainted: cheap on the TV) */
 .hero.loading { overflow: hidden; }
@@ -458,3 +472,8 @@ img[src] + .shine:before, .shine.run:before { animation-play-state: running; }
 .pause-badge { position: absolute; left: 50%; top: 50%; z-index: 2; display: flex; align-items: center; justify-content: center;
   width: 168px; height: 168px; margin: -84px 0 0 -84px; border-radius: 50%; background: rgba(0, 0, 0, .6); }
 .pause-badge .icon { width: 88px; height: 88px; margin-left: 6px; color: #fff; -webkit-mask-image: url(../img/ic_play.svg); }
+
+/* ---- the Kick intro over the start (js/splash.js) ---- */
+#splash { position: fixed; z-index: 100; left: 0; top: 0; width: 1920px; height: 1080px; background: #000; transition: opacity .35s; }
+#splash.out { opacity: 0; }
+#splash video { width: 1920px; height: 1080px; }

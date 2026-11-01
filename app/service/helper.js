@@ -131,7 +131,7 @@ function cachedLookup(host, opts, callback) {
 }
 
 var LOCAL = 'http://127.0.0.1:' + PORT;
-function proxied(target, from) { return LOCAL + '/p.m3u8?u=' + encodeURIComponent(target) + (from ? '&from=' + from : ''); }
+function proxied(target, from, edge) { return LOCAL + '/p.m3u8?u=' + encodeURIComponent(target) + (from ? '&from=' + from : '') + (edge ? '&edge=' + edge : ''); }
 
 // Segment URL with the byte range (clips cut segments out of one file) and the playlist and
 // sequence number it came from (for the look-ahead). The extension tells AVPlay the format.
@@ -141,10 +141,10 @@ function segmentUrl(target, range, list, n) {
 }
 
 // Kick TV never shows subtitles; without them AVPlay doesn't keep reloading three extra
-// playlists through here. `from` (seconds) passes on to the media playlists, see media().
-function rewrite(text, src, from) {
-  if (text.indexOf('#EXT-X-STREAM-INF') < 0) { return media(text, src, from); }
-  function fix(uri) { return proxied(url.resolve(src, uri), from); }
+// playlists through here. `from` and `edge` (seconds) pass on to the media playlists, see media().
+function rewrite(text, src, from, edge) {
+  if (text.indexOf('#EXT-X-STREAM-INF') < 0) { return media(text, src, from, edge); }
+  function fix(uri) { return proxied(url.resolve(src, uri), from, edge); }
   var lines = text.split(/\r?\n/).filter(function (line) {
     return line.indexOf('#EXT-X-MEDIA:TYPE=SUBTITLES') !== 0;
   }).map(function (line) {
@@ -174,8 +174,9 @@ function lowFirst(lines) {
 // segment URLs. With `from`, segments that end before that time are left out: a rewound live
 // stream then starts right there, instead of AVPlay loading the recording's first 10 MB
 // segment before it can jump. The app passes a segment start time, so it knows the offset.
+// With `edge`, a live playlist lists only its newest `edge` seconds (player.js: 8 s for live streams).
 var SEGMENT_TAG = /^#EXT(INF|-X-(BYTERANGE|DISCONTINUITY|KEY|MAP|PROGRAM-DATE-TIME|DATERANGE|GAP|BITRATE))\b/;
-function media(text, src, from) {
+function media(text, src, from, edge) {
   var head = [], segs = [], tags = [], seq0 = 0, dseq = null, dur = 0, range = null, ends = {}, ended = false;
   text.split(/\r?\n/).forEach(function (line) {
     var m;
@@ -207,7 +208,7 @@ function media(text, src, from) {
 
   // Same sums as the app's (player.js segmentTimes), so `from` matches a segment start exactly.
   var drop = 0, t = 0, carry = {}, gaps = 0;
-  while (from > 0 && drop < segs.length - 1 && t + segs[drop].dur <= from + 0.05) {
+  function skip() {
     segs[drop].tags.forEach(function (l) {
       var k = /^#EXT-X-(KEY|MAP)/.exec(l);
       if (k) { carry[k[1]] = l; } else if (l === '#EXT-X-DISCONTINUITY') { gaps++; }
@@ -215,7 +216,21 @@ function media(text, src, from) {
     t += segs[drop].dur;
     drop++;
   }
+  while (from > 0 && drop < segs.length - 1 && t + segs[drop].dur <= from + 0.05) { skip(); }
+  // AVPlay starts about that far behind live (the official app's player keeps 6 s) instead of
+  // three target durations back (18 s on Kick).
+  if (!ended && edge > 0 && !(from > 0)) {
+    var keep = 0, first = segs.length;
+    while (first > 0 && keep < edge) { first--; keep += segs[first].dur; }
+    while (drop < first) { skip(); }
+  }
   var id = register(src, segs, seq0, ended), out = head.slice();
+  // Kick declares 6 s for its 2 s segments; the real length keeps the short live list valid and
+  // makes AVPlay reload it every segment instead of every 6 s.
+  if (!ended && edge > 0 && segs.length) {
+    var longest = Math.ceil(segs.reduce(function (most, sg) { return Math.max(most, sg.dur); }, 0)) || 0;
+    if (longest) { out = out.map(function (l) { return l.indexOf('#EXT-X-TARGETDURATION:') === 0 ? '#EXT-X-TARGETDURATION:' + longest : l; }); }
+  }
   out.push('#EXT-X-MEDIA-SEQUENCE:' + (seq0 + drop));
   if (dseq !== null || gaps) { out.push('#EXT-X-DISCONTINUITY-SEQUENCE:' + ((dseq || 0) + gaps)); }
   segs.slice(drop).forEach(function (s, i) {
@@ -244,7 +259,7 @@ function tagUri(line, src) {
 var lists = {}, listIds = {}, nextList = 1;
 function register(src, segs, seq0, ended) {
   var id = listIds[src] || (listIds[src] = nextList++);
-  lists[id] = { src: src, segs: segs, seq0: seq0, vod: ended, at: Date.now() };
+  lists[id] = { src: src, segs: segs, seq0: seq0, vod: ended, at: Date.now(), told: !!(lists[id] && lists[id].told) };
   var ids = Object.keys(lists).sort(function (a, b) { return lists[a].at - lists[b].at; });
   ids.slice(0, Math.max(0, ids.length - 8)).forEach(function (k) { delete listIds[lists[k].src]; delete lists[k]; });
   return id;
@@ -441,7 +456,16 @@ function serveSegment(req, res, q) {
     if (s.ok) { begin(w, s); }
     res.on('close', function () { var i = s.subs.indexOf(w); if (i >= 0) { s.subs.splice(i, 1); } });
   }
-  if (q.query.l) { lookAhead(q.query.l, Number(q.query.n)); }
+  if (q.query.l) { lookAhead(q.query.l, Number(q.query.n)); behind(q.query.l, Number(q.query.n)); }
+}
+
+// How far behind live the first segment AVPlay asks of a live playlist is (for /stats).
+function behind(id, n) {
+  var list = lists[id];
+  if (!list || list.vod || list.told) { return; }
+  list.told = true;
+  var i = n - list.seq0, secs = list.segs.slice(Math.max(0, i)).reduce(function (sum, sg) { return sum + sg.dur; }, 0);
+  note('', 'live start ' + secs.toFixed(1) + ' s behind');
 }
 
 // Videos: after AVPlay asks for segment n, fetch the following AHEAD_S seconds, one segment at a
@@ -551,7 +575,7 @@ module.exports.onStart = function () {
       }
       // One bad playlist must not take the service down for the rest of the session.
       try {
-        var out = rewrite(text, q.query.u, Number(q.query.from) || 0);
+        var out = rewrite(text, q.query.u, Number(q.query.from) || 0, Math.min(30, Number(q.query.edge) || 0));
         // Byte length, not Buffer.from: on the TV's Node 4.4 that is TypedArray.from and throws.
         res.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl', 'Content-Length': Buffer.byteLength(out, 'utf8'),
                              'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
